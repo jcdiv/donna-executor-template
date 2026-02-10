@@ -89,6 +89,12 @@ function substituteEnvVars(headers, env) {
   return substituted;
 }
 
+// ===== SAFETY LIMITS =====
+
+const MAX_FOREACH_ITERATIONS_HARD_CAP = 100;
+const MAX_LLM_CALLS_PER_RUN = 25;
+const DEFAULT_DAILY_LLM_BUDGET_USD = 10.00;
+
 // ===== REGISTRY (KV-BASED) =====
 
 async function getRegistryEntry(env, op_key) {
@@ -147,6 +153,65 @@ const MODEL_CONTEXT_WINDOWS = {
   'o3': 200000,
   'o3-mini': 200000,
 };
+
+// ===== MODEL PRICING (per million tokens) =====
+
+const MODEL_PRICING_PER_MILLION = {
+  // Anthropic
+  'claude-opus-4-6-20250205': { input: 15.0, output: 75.0 },
+  'claude-opus-4-5-20251101': { input: 15.0, output: 75.0 },
+  'claude-opus-4-1-20250805': { input: 15.0, output: 75.0 },
+  'claude-sonnet-4-5-20250929': { input: 3.0, output: 15.0 },
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.0 },
+  'claude-3-5-haiku-20241022': { input: 0.80, output: 4.0 },
+  'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+  // OpenAI
+  'gpt-5.2': { input: 2.0, output: 8.0 },
+  'gpt-4.1': { input: 2.0, output: 8.0 },
+  'gpt-4.1-mini': { input: 0.40, output: 1.60 },
+  'gpt-4.1-nano': { input: 0.10, output: 0.40 },
+  'gpt-4o': { input: 2.50, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.60 },
+  'o1': { input: 15.0, output: 60.0 },
+  'o3': { input: 10.0, output: 40.0 },
+  'o3-mini': { input: 1.10, output: 4.40 },
+  // xAI
+  'grok-4-0709': { input: 3.0, output: 15.0 },
+  'grok-3-beta': { input: 3.0, output: 15.0 },
+  'grok-3-fast-beta': { input: 0.60, output: 3.0 },
+  'grok-2': { input: 2.0, output: 10.0 },
+};
+
+// ===== BUDGET HELPERS =====
+
+function estimateLLMCost(model, inputTokens, outputTokens) {
+  const pricing = MODEL_PRICING_PER_MILLION[model];
+  if (!pricing) return 0;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+}
+
+async function getDailyLLMSpend(env) {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const result = await env.DB.prepare(
+      'SELECT COALESCE(SUM(estimated_cost_usd), 0) as total FROM llm_usage WHERE created_at >= ?'
+    ).bind(`${today}T00:00:00.000Z`).first();
+    return result?.total || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function logLLMUsage(env, runId, model, inputTokens, outputTokens, costUsd) {
+  try {
+    const id = `llm-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    await env.DB.prepare(
+      'INSERT INTO llm_usage (id, run_id, model, input_tokens, output_tokens, estimated_cost_usd, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(id, runId, model, inputTokens || 0, outputTokens || 0, costUsd, new Date().toISOString()).run();
+  } catch (e) {
+    console.log('[budget] Failed to log LLM usage:', e.message);
+  }
+}
 
 // ===== LLM OUTPUT PROCESSING =====
 
@@ -454,6 +519,25 @@ const PRIMITIVES = {
       }
     }
 
+    // Budget check — per-run call limit + daily spend cap
+    if (executionContext?._budget) {
+      const b = executionContext._budget;
+      if (b.llmCallCount >= b.maxLLMCallsPerRun) {
+        return { ok: false, error: `LLM call limit reached (max ${b.maxLLMCallsPerRun} per run). Reduce steps or increase limit via config:max_llm_calls_per_run.` };
+      }
+      if (b.dailySpendUsd >= b.dailyBudgetUsd) {
+        return { ok: false, error: `Daily LLM budget exceeded: $${b.dailySpendUsd.toFixed(4)} spent of $${b.dailyBudgetUsd.toFixed(2)} limit. Adjust via config:daily_budget_usd.` };
+      }
+      b.llmCallCount++;
+    } else if (env?.DB) {
+      const dailySpend = await getDailyLLMSpend(env);
+      const budgetRaw = await env.REGISTRY_KV?.get('config:daily_budget_usd');
+      const budget = budgetRaw ? parseFloat(budgetRaw) : DEFAULT_DAILY_LLM_BUDGET_USD;
+      if (dailySpend >= budget) {
+        return { ok: false, error: `Daily LLM budget exceeded: $${dailySpend.toFixed(4)} spent of $${budget.toFixed(2)} limit. Adjust via config:daily_budget_usd.` };
+      }
+    }
+
     try {
       if (model.startsWith('claude-')) {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -479,6 +563,11 @@ const PRIMITIVES = {
           output_tokens: result.usage.output_tokens,
           total_tokens: (result.usage.input_tokens || 0) + (result.usage.output_tokens || 0)
         } : null;
+        if (usage && env?.DB) {
+          const cost = estimateLLMCost(model, usage.input_tokens || 0, usage.output_tokens || 0);
+          if (executionContext?._budget) executionContext._budget.dailySpendUsd += cost;
+          await logLLMUsage(env, runId, model, usage.input_tokens || 0, usage.output_tokens || 0, cost);
+        }
         return { ok: true, status: response.status, data: finalData, usage };
 
       } else if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3')) {
@@ -500,6 +589,11 @@ const PRIMITIVES = {
           output_tokens: result.usage.completion_tokens,
           total_tokens: result.usage.total_tokens
         } : null;
+        if (usage && env?.DB) {
+          const cost = estimateLLMCost(model, usage.input_tokens || 0, usage.output_tokens || 0);
+          if (executionContext?._budget) executionContext._budget.dailySpendUsd += cost;
+          await logLLMUsage(env, runId, model, usage.input_tokens || 0, usage.output_tokens || 0, cost);
+        }
         return { ok: true, status: response.status, data: finalData, usage };
 
       } else if (model.startsWith('grok-')) {
@@ -521,6 +615,11 @@ const PRIMITIVES = {
           output_tokens: result.usage.completion_tokens,
           total_tokens: result.usage.total_tokens
         } : null;
+        if (usage && env?.DB) {
+          const cost = estimateLLMCost(model, usage.input_tokens || 0, usage.output_tokens || 0);
+          if (executionContext?._budget) executionContext._budget.dailySpendUsd += cost;
+          await logLLMUsage(env, runId, model, usage.input_tokens || 0, usage.output_tokens || 0, cost);
+        }
         return { ok: true, status: response.status, data: finalData, usage };
 
       } else {
@@ -608,7 +707,10 @@ const PRIMITIVES = {
     const iterations = [];
     const errors = [];
     let haltRequested = false;
-    const effectiveLimit = max_iterations ? Math.min(array.length, max_iterations) : array.length;
+    const effectiveLimit = Math.min(
+      max_iterations ? Math.min(array.length, max_iterations) : array.length,
+      MAX_FOREACH_ITERATIONS_HARD_CAP
+    );
 
     for (let index = 0; index < effectiveLimit && !haltRequested; index++) {
       const item = array[index];
@@ -1284,6 +1386,25 @@ async function executeBatch(env, run_id, steps, initialContext = {}) {
     context: initialContext,
     protocol_key: initialContext.protocol_key || null
   };
+
+  // Initialize budget tracking
+  let dailyBudget = DEFAULT_DAILY_LLM_BUDGET_USD;
+  let maxLLMCalls = MAX_LLM_CALLS_PER_RUN;
+  try {
+    const budgetRaw = await env.REGISTRY_KV?.get('config:daily_budget_usd');
+    if (budgetRaw) dailyBudget = parseFloat(budgetRaw);
+    const llmCapRaw = await env.REGISTRY_KV?.get('config:max_llm_calls_per_run');
+    if (llmCapRaw) maxLLMCalls = parseInt(llmCapRaw);
+  } catch {}
+  let currentDailySpend = 0;
+  try { currentDailySpend = await getDailyLLMSpend(env); } catch {}
+  executionContext._budget = {
+    llmCallCount: 0,
+    maxLLMCallsPerRun: maxLLMCalls,
+    dailyBudgetUsd: dailyBudget,
+    dailySpendUsd: currentDailySpend,
+  };
+
   let stepNumber = 0;
 
   for (const step of steps) {
@@ -1669,10 +1790,40 @@ export default {
       }
     }
 
+    // ===== BUDGET =====
+
+    // GET /budget — Current daily LLM spend and limits
+    if (url.pathname === '/budget' && request.method === 'GET') {
+      const authErr = requireAuth(request, env); if (authErr) return authErr;
+      try {
+        const dailySpend = await getDailyLLMSpend(env);
+        const budgetRaw = await env.REGISTRY_KV?.get('config:daily_budget_usd');
+        const budget = budgetRaw ? parseFloat(budgetRaw) : DEFAULT_DAILY_LLM_BUDGET_USD;
+        const llmCapRaw = await env.REGISTRY_KV?.get('config:max_llm_calls_per_run');
+        const maxCalls = llmCapRaw ? parseInt(llmCapRaw) : MAX_LLM_CALLS_PER_RUN;
+        const today = new Date().toISOString().slice(0, 10);
+        const breakdown = await env.DB.prepare(
+          'SELECT model, COUNT(*) as calls, SUM(input_tokens) as input_tokens, SUM(output_tokens) as output_tokens, ROUND(SUM(estimated_cost_usd), 6) as cost_usd FROM llm_usage WHERE created_at >= ? GROUP BY model'
+        ).bind(`${today}T00:00:00.000Z`).all();
+        return json({
+          daily_budget_usd: budget,
+          daily_spend_usd: Math.round(dailySpend * 1000000) / 1000000,
+          remaining_usd: Math.round(Math.max(0, budget - dailySpend) * 1000000) / 1000000,
+          budget_exceeded: dailySpend >= budget,
+          max_llm_calls_per_run: maxCalls,
+          foreach_hard_cap: MAX_FOREACH_ITERATIONS_HARD_CAP,
+          today,
+          breakdown: breakdown.results
+        });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+
     // 404
     return json({
       error: 'Not found',
-      endpoints: ['/health', '/authoring-context', '/run', '/exec', '/batch', '/registry', '/registry/import', '/protocols', '/executions']
+      endpoints: ['/health', '/authoring-context', '/run', '/exec', '/batch', '/registry', '/registry/import', '/protocols', '/executions', '/budget']
     }, 404);
   },
 
