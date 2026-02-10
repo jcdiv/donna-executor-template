@@ -5,11 +5,11 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "donna-executor-db"
-database_id = ""
+database_id = ""  # Run: npx wrangler d1 create donna-executor-db
 
 [[kv_namespaces]]
 binding = "REGISTRY_KV"
-id = ""
+id = ""  # Run: npx wrangler kv namespace create REGISTRY_KV
 
 [triggers]
 crons = ["0 * * * *"]
