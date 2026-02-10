@@ -1,0 +1,74 @@
+[
+  {
+    "op_key": "github.list_issues",
+    "service": "github",
+    "method": "GET",
+    "path": "/repos/{owner}/{repo}/issues",
+    "base_url": "https://api.github.com",
+    "auth_scheme": "bearer",
+    "auth_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "required_params": ["owner", "repo"],
+    "optional_params": ["state", "labels", "sort", "direction", "per_page"],
+    "status": "active"
+  },
+  {
+    "op_key": "github.create_issue",
+    "service": "github",
+    "method": "POST",
+    "path": "/repos/{owner}/{repo}/issues",
+    "base_url": "https://api.github.com",
+    "auth_scheme": "bearer",
+    "auth_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "required_params": ["owner", "repo", "title"],
+    "optional_params": ["body", "assignees", "labels"],
+    "status": "active"
+  },
+  {
+    "op_key": "github.search_repos",
+    "service": "github",
+    "method": "GET",
+    "path": "/search/repositories",
+    "base_url": "https://api.github.com",
+    "auth_scheme": "bearer",
+    "auth_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "required_params": ["q"],
+    "optional_params": ["sort", "order", "per_page"],
+    "status": "active"
+  },
+  {
+    "op_key": "slack.chat.postMessage",
+    "service": "slack",
+    "method": "POST",
+    "path": "/api/chat.postMessage",
+    "base_url": "https://slack.com",
+    "auth_scheme": "bearer",
+    "auth_env": "SLACK_BOT_TOKEN",
+    "required_params": ["channel", "text"],
+    "optional_params": ["thread_ts", "unfurl_links", "unfurl_media"],
+    "status": "active"
+  },
+  {
+    "op_key": "slack.conversations.list",
+    "service": "slack",
+    "method": "GET",
+    "path": "/api/conversations.list",
+    "base_url": "https://slack.com",
+    "auth_scheme": "bearer",
+    "auth_env": "SLACK_BOT_TOKEN",
+    "required_params": [],
+    "optional_params": ["types", "limit", "cursor"],
+    "status": "active"
+  },
+  {
+    "op_key": "tavily.search",
+    "service": "tavily",
+    "method": "POST",
+    "path": "/search",
+    "base_url": "https://api.tavily.com",
+    "auth_scheme": "api_key",
+    "auth_env": "TAVILY_API_KEY",
+    "required_params": ["query"],
+    "optional_params": ["search_depth", "max_results", "include_answer", "include_raw_content"],
+    "status": "active"
+  }
+]

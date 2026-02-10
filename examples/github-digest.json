@@ -1,0 +1,47 @@
+{
+  "protocol_key": "github_digest",
+  "name": "GitHub Issues Digest",
+  "description": "Fetches open issues from a repo and generates an LLM summary. Requires github.list_issues registry entry and GITHUB_PERSONAL_ACCESS_TOKEN secret.",
+  "steps": [
+    {
+      "step": 1,
+      "primitive": "util.time",
+      "args": { "operation": "now" }
+    },
+    {
+      "step": 2,
+      "primitive": "http.registry_fetch",
+      "args": {
+        "op_key": "github.list_issues",
+        "params": {
+          "owner": "anthropics",
+          "repo": "claude-code",
+          "state": "open",
+          "per_page": "10"
+        }
+      }
+    },
+    {
+      "step": 3,
+      "primitive": "llm.generate",
+      "args": {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 500,
+        "prompt": "Summarize these GitHub issues in 3-5 bullet points. Focus on themes and priorities.\n\nReturn plain text (not JSON).",
+        "input": "{{step_2.data}}"
+      }
+    },
+    {
+      "step": 4,
+      "primitive": "memory.log",
+      "args": {
+        "event": "github_digest_completed",
+        "payload": {
+          "summary": "{{step_3}}",
+          "issue_count": "{{step_2.data.length}}",
+          "generated_at": "{{step_1.timestamp}}"
+        }
+      }
+    }
+  ]
+}

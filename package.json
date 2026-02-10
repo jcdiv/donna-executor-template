@@ -1,0 +1,16 @@
+{
+  "name": "donna-executor-template",
+  "version": "1.0.0",
+  "description": "Deploy autonomous protocol execution to your own Cloudflare Workers account",
+  "main": "src/worker.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "migrate": "wrangler d1 execute donna-executor-db --file migrations/0001_executions.sql"
+  },
+  "keywords": ["cloudflare-workers", "automation", "protocols", "ai-agents"],
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

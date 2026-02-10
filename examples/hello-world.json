@@ -1,0 +1,31 @@
+{
+  "protocol_key": "hello_world",
+  "name": "Hello World",
+  "steps": [
+    {
+      "step": 1,
+      "primitive": "util.time",
+      "args": { "operation": "now" }
+    },
+    {
+      "step": 2,
+      "primitive": "llm.generate",
+      "args": {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 200,
+        "prompt": "The current time is {{step_1.timestamp}}. Write a one-sentence greeting for someone deploying their first autonomous protocol."
+      }
+    },
+    {
+      "step": 3,
+      "primitive": "memory.log",
+      "args": {
+        "event": "hello_world_completed",
+        "payload": {
+          "greeting": "{{step_2}}",
+          "timestamp": "{{step_1.timestamp}}"
+        }
+      }
+    }
+  ]
+}
