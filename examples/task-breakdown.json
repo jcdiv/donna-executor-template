@@ -1,0 +1,62 @@
+{
+  "protocol_key": "task_breakdown",
+  "name": "Task Breakdown Loop",
+  "description": "Breaks a goal into actionable steps using identity context. Run twice to see compounding — run 2 reads run 1's self-critique and produces a tighter plan.",
+  "steps": [
+    {
+      "step": 1,
+      "name": "Get timestamp",
+      "primitive": "util.time",
+      "args": { "operation": "now" }
+    },
+    {
+      "step": 2,
+      "name": "Search for prior breakdowns of similar goals",
+      "primitive": "memory.search",
+      "args": {
+        "query": "task breakdown: {{context.goal}}",
+        "top_k": 1,
+        "event_filter": "task_breakdown"
+      }
+    },
+    {
+      "step": 3,
+      "name": "Break down goal using identity + prior memory",
+      "primitive": "llm.generate",
+      "args": {
+        "model": "claude-sonnet-4-5-20250929",
+        "max_tokens": 3000,
+        "prompt": "You are a task planning system. Break a goal into concrete, actionable steps.\n\nWHO IS THIS FOR:\n{{context.identity}}\n\nGOAL TO BREAK DOWN:\n{{context.goal}}\n\nPRIOR BREAKDOWN MEMORY:\n{{step_2}}\n\n== RULES ==\n\n1. Produce 4-6 steps. Each step must be a single concrete action, not a category.\n2. Steps must be ordered by dependency — each step should be doable after completing the previous ones.\n3. Tailor the plan to the person's identity — a developer gets different steps than a marketer.\n4. If prior memories exist (non-empty array above): read the self_evaluation and what_id_do_differently. EXPLICITLY quote what the prior run criticized and address it. Set prior_run_referenced: true.\n5. If no prior memories (empty array): first pass. Set prior_run_referenced: false.\n6. Be specific in self_evaluation — what gaps remain?\n7. No markdown in values. Plain text only. No curly braces.\n\nReturn ONLY valid JSON (no markdown fences, NOT an array). All 6 fields required:\n{\"steps\": [\"step 1\", \"step 2\", \"step 3\", \"step 4\"], \"reasoning\": \"why this ordering and these steps for this person\", \"self_evaluation\": \"what is still weak about this plan\", \"what_id_do_differently\": \"concrete strategy for improving this plan next time\", \"prior_run_referenced\": false, \"prior_run_improvements\": null}"
+      }
+    },
+    {
+      "step": 4,
+      "name": "Validate LLM output structure",
+      "primitive": "validate.schema",
+      "args": {
+        "data": "{{step_3}}",
+        "schema": {
+          "type": "object",
+          "required_fields": ["steps", "self_evaluation", "what_id_do_differently"]
+        }
+      }
+    },
+    {
+      "step": 5,
+      "name": "Log breakdown to memory for future runs",
+      "primitive": "memory.log",
+      "args": {
+        "event": "task_breakdown",
+        "payload": {
+          "goal": "{{context.goal}}",
+          "steps": "{{step_4.steps}}",
+          "reasoning": "{{step_4.reasoning}}",
+          "self_evaluation": "{{step_4.self_evaluation}}",
+          "what_id_do_differently": "{{step_4.what_id_do_differently}}",
+          "identity": "{{context.identity}}",
+          "timestamp": "{{step_1.timestamp}}"
+        }
+      }
+    }
+  ]
+}

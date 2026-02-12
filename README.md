@@ -276,69 +276,84 @@ crons = ["0 */4 * * *"]  # Every 4 hours
 | `XAI_API_KEY` | If using Grok | `llm.generate` with `grok-*` models |
 | `{SERVICE}_TOKEN` | Per-service | Whatever `auth_env` your registry entries reference |
 
-## Donna Loops Demo: Visible Compounding in 90 Seconds
+## Donna Loops: Protocols That Remember
 
-This demo shows the core differentiator: **protocols that remember**. Run a content refinement protocol twice — the second run finds the first run's self-evaluation and makes *different* improvements. No prompt injection. Real semantic memory.
+The core differentiator: **run a protocol twice and the second run is better than the first**. Not because of a better prompt — because it remembers what it did last time and what it got wrong.
 
-### Setup (one-time)
-
-After deploying (steps above), run the memories migration and save the demo protocol:
+### Quick demo
 
 ```bash
-# Run memories migration
-npx wrangler d1 execute donna-executor-db --remote --file migrations/0003_memories.sql
+./scripts/demo.sh https://your-worker.workers.dev YOUR_ADMIN_TOKEN
+```
 
-# Save the content refinement protocol
+This saves the demo protocols, runs content-refine twice, and prints a side-by-side comparison showing compounding.
+
+### How it works
+
+```
+Run 1:                                Run 2:
+  memory.search → (empty)               memory.search → finds Run 1
+  llm.generate → output + self-eval     llm.generate → reads prior eval, does something different
+  memory.log → saves to D1              memory.log → saves to D1
+```
+
+Every run logs its output AND a self-evaluation to semantic memory. The next run finds that memory by meaning (not keyword) and explicitly addresses the prior critique. The self-evaluation is honest because it's not shown to the user — it's shown to the next run.
+
+### Demo protocols
+
+| Protocol | Input | What compounds |
+|----------|-------|----------------|
+| `content_refine` | `identity` + `text` | Refinement strategy — each run fixes what the last run said was still weak |
+| `task_breakdown` | `identity` + `goal` | Planning quality — each run produces tighter steps based on prior self-critique |
+
+### Example: content_refine
+
+```bash
+# Save the protocol
 curl -X POST https://your-worker.workers.dev/protocols \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d @examples/content-refine.json
-```
 
-### Run 1: First Pass
-
-```bash
+# Run it (run this twice — compare the outputs)
 curl -X POST https://your-worker.workers.dev/run \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "protocol_key": "content_refine",
     "context": {
-      "identity": "I am a developer advocate who writes technical blog posts for a startup audience. I value clarity over cleverness and prefer concrete examples over abstract theory.",
+      "identity": "developer advocate writing for startup audience, values clarity over cleverness",
       "text": "Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
     }
   }'
 ```
 
-Run 1 outputs: refined text, improvements made, and a self-evaluation noting what's still weak. This gets logged to semantic memory.
+### Example: task_breakdown
 
-### Run 2: Compounding
+```bash
+curl -X POST https://your-worker.workers.dev/protocols \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @examples/task-breakdown.json
 
-Run the **exact same command** again. The protocol:
-
-1. Searches memory for prior refinements of similar content
-2. Finds Run 1's self-evaluation and `what_id_do_differently_next_time`
-3. Explicitly references what the prior run noted
-4. Makes *different* improvements addressing the prior self-critique
-
-Compare the two outputs side-by-side. Run 2 will say something like: "In my previous refinement, I noted that [X]. This time I specifically addressed that by [Y]."
-
-### What's happening under the hood
-
-```
-Run 1:                                Run 2:
-  util.time                             util.time
-  memory.search → (empty)               memory.search → finds Run 1
-  llm.generate → refine + self-eval     llm.generate → reads prior eval, refines differently
-  validate.schema                       validate.schema
-  memory.log → saves to D1              memory.log → saves to D1
+curl -X POST https://your-worker.workers.dev/run \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protocol_key": "task_breakdown",
+    "context": {
+      "identity": "solo founder, technical, building a B2B SaaS, limited time",
+      "goal": "Launch a landing page that converts developer signups by end of week"
+    }
+  }'
 ```
 
-The identity anchor matters: change "developer advocate" to "startup CEO writing investor updates" and the refinements shift entirely. Same protocol, different person, different output.
+### The identity anchor
 
-### Try your own content
-
-Change `text` and `identity` to anything. The protocol adapts to who you are and what you're writing. Run it three times — each run builds on all prior runs.
+Change the identity and the output changes entirely. Same protocol, different person, different result:
+- `"developer advocate writing for startup audience"` → technical specifics, code examples
+- `"startup CEO writing investor updates"` → metrics, traction, strategic framing
+- `"junior dev documenting an internal tool"` → step-by-step clarity, no assumptions
 
 ## License
 
