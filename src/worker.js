@@ -1718,6 +1718,28 @@ export default {
 
     // ===== AUTHENTICATED ENDPOINTS =====
 
+    // PUT /identity — Store identity (persists in KV)
+    if (url.pathname === '/identity' && request.method === 'PUT') {
+      const authErr = requireAuth(request, env); if (authErr) return authErr;
+      try {
+        const body = await request.json();
+        const { identity } = body;
+        if (!identity || typeof identity !== 'string') return json({ error: 'identity string required' }, 400);
+        await env.REGISTRY_KV.put('config:identity', identity);
+        return json({ ok: true, identity, message: 'Identity stored' });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+
+    // GET /identity — Retrieve stored identity
+    if (url.pathname === '/identity' && request.method === 'GET') {
+      const authErr = requireAuth(request, env); if (authErr) return authErr;
+      const identity = await env.REGISTRY_KV.get('config:identity');
+      if (!identity) return json({ identity: null, message: 'No identity set. PUT /identity to store one.' });
+      return json({ identity });
+    }
+
     // POST /run — Execute protocol by key from KV
     if (url.pathname === '/run' && request.method === 'POST') {
       const authErr = requireAuth(request, env); if (authErr) return authErr;
@@ -1725,6 +1747,12 @@ export default {
         const body = await request.json();
         const { protocol_key, context = {} } = body;
         if (!protocol_key) return json({ error: 'protocol_key required' }, 400);
+
+        // Auto-inject stored identity if not provided in context
+        if (!context.identity) {
+          const storedIdentity = await env.REGISTRY_KV.get('config:identity');
+          if (storedIdentity) context.identity = storedIdentity;
+        }
 
         const protoRaw = await env.REGISTRY_KV.get(`protocol:${protocol_key}`);
         if (!protoRaw) return json({ error: `Protocol '${protocol_key}' not found` }, 404);

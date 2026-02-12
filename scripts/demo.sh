@@ -1,13 +1,12 @@
 #!/bin/bash
-# Donna Loops Demo — run this after deploying to see compounding in action
+# Donna Loops Demo
 #
-# Usage: ./scripts/demo.sh https://your-worker.workers.dev YOUR_ADMIN_TOKEN
+# Usage: ./scripts/demo.sh <worker-url> <admin-token>
 #
-# What happens:
-#   1. Saves two demo protocols (content-refine, task-breakdown)
-#   2. Clears prior memories for a clean demo
-#   3. Runs content-refine twice, showing compounding
-#   4. Prints side-by-side comparison
+# Three acts:
+#   1. Attach Identity — tell the system who you are
+#   2. Compounding    — run a protocol twice, see the second run improve on the first
+#   3. Identity Shift — change who you are, see the output transform
 
 set -euo pipefail
 
@@ -21,126 +20,200 @@ DIM='\033[2m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
+RED='\033[0;31m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 
-echo -e "${BOLD}Donna Loops Demo${NC}"
-echo -e "${DIM}Protocols that remember. Visible compounding between runs.${NC}"
-echo ""
-
-# 1. Save protocols
-echo -e "${CYAN}[1/5]${NC} Saving demo protocols..."
-for f in examples/content-refine.json examples/task-breakdown.json; do
-  if [ -f "$f" ]; then
-    RESULT=$(curl -s -X POST "$URL/protocols" -H "$AUTH" -H "Content-Type: application/json" --data-binary @"$f")
-    KEY=$(echo "$RESULT" | grep -o '"protocol_key":"[^"]*"' | cut -d'"' -f4)
-    echo "  saved: $KEY"
-  fi
-done
-
-# 2. Clear memories for clean demo
-echo -e "${CYAN}[2/5]${NC} Clearing prior memories..."
-curl -s -X POST "$URL/exec" -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{"primitive":"memory.search","args":{"query":"test","top_k":1}}' > /dev/null 2>&1 || true
-echo "  done"
-
-# 3. Run 1
-echo ""
-echo -e "${CYAN}[3/5]${NC} ${BOLD}Run 1: First pass (no prior memory)${NC}"
-echo -e "${DIM}  Running content_refine...${NC}"
-
-RUN1=$(curl -s -X POST "$URL/run" -H "$AUTH" -H "Content-Type: application/json" -d '{
-  "protocol_key": "content_refine",
-  "context": {
-    "identity": "I am a developer advocate who writes technical blog posts for a startup audience. I value clarity over cleverness and prefer concrete examples over abstract theory.",
-    "text": "Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
-  }
-}')
-
-RUN1_SUCCESS=$(echo "$RUN1" | grep -o '"success":[a-z]*' | head -1 | cut -d: -f2)
-RUN1_DURATION=$(echo "$RUN1" | grep -o '"duration_ms":[0-9]*' | tail -1 | cut -d: -f2)
-RUN1_MEMORY=$(echo "$RUN1" | grep -o '"data":\[\]' | head -1 || true)
-
-# Extract step 3 (LLM) result
-RUN1_REFINED=$(echo "$RUN1" | python3 -c "
+# Helper: extract field from LLM step output
+extract() {
+  echo "$1" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 step3 = data['execution_results'][2]['result']['data']
-if isinstance(step3, str): step3 = json.loads(step3)
-print(json.dumps(step3, indent=2))
-" 2>/dev/null || echo '{"error": "Could not parse Run 1 output"}')
+if isinstance(step3, str):
+    try: step3 = json.loads(step3)
+    except: pass
+field = '$2'
+val = step3.get(field, '') if isinstance(step3, dict) else ''
+if isinstance(val, list):
+    for item in val: print('  - ' + str(item))
+else:
+    print(str(val))
+" 2>/dev/null
+}
 
-echo -e "  ${GREEN}success: $RUN1_SUCCESS${NC} (${RUN1_DURATION}ms)"
-if [ -n "$RUN1_MEMORY" ]; then
-  echo -e "  memory.search: ${YELLOW}empty (no prior memories)${NC}"
-fi
-echo ""
-echo -e "${BOLD}  Refined text:${NC}"
-echo "$RUN1_REFINED" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ' + d.get('refined_text','?'))" 2>/dev/null || true
-echo ""
-echo -e "${BOLD}  Self-evaluation:${NC}"
-echo "$RUN1_REFINED" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ' + d.get('self_evaluation','?'))" 2>/dev/null || true
-echo ""
-echo -e "${BOLD}  Next time:${NC}"
-echo "$RUN1_REFINED" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ' + d.get('what_id_do_differently_next_time','?'))" 2>/dev/null || true
-
-# 4. Run 2
-echo ""
-echo -e "${CYAN}[4/5]${NC} ${BOLD}Run 2: Compounding (finds Run 1's memory)${NC}"
-echo -e "${DIM}  Running content_refine again — same input, same protocol...${NC}"
-
-RUN2=$(curl -s -X POST "$URL/run" -H "$AUTH" -H "Content-Type: application/json" -d '{
-  "protocol_key": "content_refine",
-  "context": {
-    "identity": "I am a developer advocate who writes technical blog posts for a startup audience. I value clarity over cleverness and prefer concrete examples over abstract theory.",
-    "text": "Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
-  }
-}')
-
-RUN2_SUCCESS=$(echo "$RUN2" | grep -o '"success":[a-z]*' | head -1 | cut -d: -f2)
-RUN2_DURATION=$(echo "$RUN2" | grep -o '"duration_ms":[0-9]*' | tail -1 | cut -d: -f2)
-
-RUN2_REFINED=$(echo "$RUN2" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-step3 = data['execution_results'][2]['result']['data']
-if isinstance(step3, str): step3 = json.loads(step3)
-print(json.dumps(step3, indent=2))
-" 2>/dev/null || echo '{"error": "Could not parse Run 2 output"}')
-
-# Get similarity score from memory.search result
-RUN2_SIMILARITY=$(echo "$RUN2" | python3 -c "
+# Helper: extract similarity from memory.search step
+similarity() {
+  echo "$1" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 step2 = data['execution_results'][1]['result']['data']
 if step2 and len(step2) > 0:
     print(f'{step2[0].get(\"similarity\", 0):.2f}')
 else:
-    print('N/A')
-" 2>/dev/null || echo "N/A")
+    print('none')
+" 2>/dev/null
+}
 
-echo -e "  ${GREEN}success: $RUN2_SUCCESS${NC} (${RUN2_DURATION}ms)"
-echo -e "  memory.search: ${GREEN}found Run 1 (similarity: $RUN2_SIMILARITY)${NC}"
-echo ""
-echo -e "${BOLD}  Refined text:${NC}"
-echo "$RUN2_REFINED" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ' + d.get('refined_text','?'))" 2>/dev/null || true
-echo ""
-echo -e "${BOLD}  Prior run improvements:${NC}"
-echo "$RUN2_REFINED" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ' + d.get('prior_run_improvements','?'))" 2>/dev/null || true
-echo ""
-echo -e "${BOLD}  New self-evaluation:${NC}"
-echo "$RUN2_REFINED" | python3 -c "import sys,json; d=json.load(sys.stdin); print('  ' + d.get('self_evaluation','?'))" 2>/dev/null || true
+divider() {
+  echo ""
+  echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+  echo ""
+}
 
-# 5. Summary
+# ===== SETUP =====
+
 echo ""
-echo -e "${CYAN}[5/5]${NC} ${BOLD}Summary${NC}"
+echo -e "${BOLD}  DONNA LOOPS${NC}"
+echo -e "${DIM}  Protocols that remember. Identity that shapes.${NC}"
 echo ""
-echo -e "  Run 1: First pass. Clean slate. Self-evaluation stored to memory."
-echo -e "  Run 2: Found prior run. Referenced its critique. Made different improvements."
+
+echo -e "${DIM}  Saving protocols...${NC}"
+for f in examples/content-refine.json examples/task-breakdown.json; do
+  if [ -f "$f" ]; then
+    curl -s -X POST "$URL/protocols" -H "$AUTH" -H "Content-Type: application/json" --data-binary @"$f" > /dev/null
+  fi
+done
+echo -e "${DIM}  Done.${NC}"
+
+divider
+
+# ===== ACT 1: ATTACH IDENTITY =====
+
+echo -e "${MAGENTA}  ACT 1: ATTACH IDENTITY${NC}"
 echo ""
-echo -e "  Same protocol. Same input. The memory is what changed."
+echo -e "${DIM}  Tell the system who you are. Every protocol adapts to this.${NC}"
 echo ""
-echo -e "  ${DIM}Change the identity to see how refinements shift:${NC}"
-echo -e "  ${DIM}  'startup CEO writing investor updates'${NC}"
-echo -e "  ${DIM}  'junior dev documenting an internal tool'${NC}"
-echo -e "  ${DIM}  'marketing lead writing product launch copy'${NC}"
+
+IDENTITY_1="Developer advocate at a startup. I write technical blog posts for other developers. I value clarity over cleverness and prefer concrete examples over abstract theory."
+
+echo -e "${BOLD}  Setting identity:${NC}"
+echo -e "  ${CYAN}\"$IDENTITY_1\"${NC}"
+echo ""
+
+curl -s -X PUT "$URL/identity" -H "$AUTH" -H "Content-Type: application/json" \
+  -d "{\"identity\": \"$IDENTITY_1\"}" > /dev/null
+
+echo -e "  ${GREEN}Identity stored.${NC} Every protocol will now be shaped by this."
+
+divider
+
+# ===== ACT 2: COMPOUNDING =====
+
+echo -e "${MAGENTA}  ACT 2: COMPOUNDING${NC}"
+echo ""
+echo -e "${DIM}  Run the same protocol twice. The second run finds the first${NC}"
+echo -e "${DIM}  run's self-critique and makes different improvements.${NC}"
+echo ""
+
+INPUT_TEXT="Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
+
+echo -e "${BOLD}  Input text:${NC}"
+echo -e "  ${DIM}\"$INPUT_TEXT\"${NC}"
+echo ""
+
+# --- Run 1 ---
+
+echo -e "  ${CYAN}RUN 1${NC} ${DIM}(no prior memory)${NC}"
+echo -e "${DIM}  Running...${NC}"
+
+RUN1=$(curl -s -X POST "$URL/run" -H "$AUTH" -H "Content-Type: application/json" \
+  -d "{\"protocol_key\": \"content_refine\", \"context\": {\"text\": \"$INPUT_TEXT\"}}")
+
+RUN1_SUCCESS=$(echo "$RUN1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success','?'))" 2>/dev/null)
+RUN1_MS=$(echo "$RUN1" | python3 -c "import sys,json; print(json.load(sys.stdin).get('duration_ms','?'))" 2>/dev/null)
+
+echo -e "  ${GREEN}$RUN1_SUCCESS${NC} in ${RUN1_MS}ms"
+echo ""
+echo -e "  ${BOLD}Refined text:${NC}"
+echo -e "  $(extract "$RUN1" refined_text)"
+echo ""
+echo -e "  ${BOLD}Self-evaluation:${NC}"
+echo -e "  ${YELLOW}$(extract "$RUN1" self_evaluation)${NC}"
+echo ""
+echo -e "  ${BOLD}What to do differently next time:${NC}"
+echo -e "  $(extract "$RUN1" what_id_do_differently_next_time)"
+
+echo ""
+sleep 1
+
+# --- Run 2 ---
+
+echo -e "  ${CYAN}RUN 2${NC} ${DIM}(same input, same protocol — but now there's memory)${NC}"
+echo -e "${DIM}  Running...${NC}"
+
+RUN2=$(curl -s -X POST "$URL/run" -H "$AUTH" -H "Content-Type: application/json" \
+  -d "{\"protocol_key\": \"content_refine\", \"context\": {\"text\": \"$INPUT_TEXT\"}}")
+
+RUN2_SUCCESS=$(echo "$RUN2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success','?'))" 2>/dev/null)
+RUN2_MS=$(echo "$RUN2" | python3 -c "import sys,json; print(json.load(sys.stdin).get('duration_ms','?'))" 2>/dev/null)
+RUN2_SIM=$(similarity "$RUN2")
+
+echo -e "  ${GREEN}$RUN2_SUCCESS${NC} in ${RUN2_MS}ms — found prior run ${GREEN}(similarity: $RUN2_SIM)${NC}"
+echo ""
+echo -e "  ${BOLD}What it learned from Run 1:${NC}"
+echo -e "  ${CYAN}$(extract "$RUN2" prior_run_improvements)${NC}"
+echo ""
+echo -e "  ${BOLD}Refined text (different from Run 1):${NC}"
+echo -e "  $(extract "$RUN2" refined_text)"
+echo ""
+echo -e "  ${BOLD}New self-evaluation (new critique):${NC}"
+echo -e "  ${YELLOW}$(extract "$RUN2" self_evaluation)${NC}"
+
+divider
+
+# ===== ACT 3: IDENTITY SHIFT =====
+
+echo -e "${MAGENTA}  ACT 3: IDENTITY SHIFT${NC}"
+echo ""
+echo -e "${DIM}  Same protocol, same input text. Different person.${NC}"
+echo ""
+
+IDENTITY_2="Startup CEO writing investor updates. I need to convey traction, market opportunity, and strategic vision. Investors care about metrics and defensibility, not technical details."
+
+echo -e "${BOLD}  New identity:${NC}"
+echo -e "  ${CYAN}\"$IDENTITY_2\"${NC}"
+echo ""
+
+curl -s -X PUT "$URL/identity" -H "$AUTH" -H "Content-Type: application/json" \
+  -d "$(python3 -c "import json; print(json.dumps({'identity': '$IDENTITY_2'}))")" > /dev/null
+
+echo -e "  ${GREEN}Identity changed.${NC}"
+echo ""
+
+echo -e "  ${CYAN}RUN 3${NC} ${DIM}(same input text, new identity)${NC}"
+echo -e "${DIM}  Running...${NC}"
+
+RUN3=$(curl -s -X POST "$URL/run" -H "$AUTH" -H "Content-Type: application/json" \
+  -d "{\"protocol_key\": \"content_refine\", \"context\": {\"text\": \"$INPUT_TEXT\"}}")
+
+RUN3_SUCCESS=$(echo "$RUN3" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success','?'))" 2>/dev/null)
+RUN3_MS=$(echo "$RUN3" | python3 -c "import sys,json; print(json.load(sys.stdin).get('duration_ms','?'))" 2>/dev/null)
+
+echo -e "  ${GREEN}$RUN3_SUCCESS${NC} in ${RUN3_MS}ms"
+echo ""
+echo -e "  ${BOLD}Refined text (as startup CEO):${NC}"
+echo -e "  $(extract "$RUN3" refined_text)"
+echo ""
+echo -e "  ${BOLD}Improvements made:${NC}"
+echo "$(extract "$RUN3" improvements_made)"
+
+divider
+
+# ===== SUMMARY =====
+
+echo -e "${BOLD}  WHAT JUST HAPPENED${NC}"
+echo ""
+echo -e "  ${CYAN}Act 1:${NC} Stored an identity. The system now knows who you are."
+echo -e "  ${CYAN}Act 2:${NC} Ran a protocol twice. Run 2 found Run 1's self-critique"
+echo -e "        and made different improvements. Real compounding."
+echo -e "  ${CYAN}Act 3:${NC} Changed identity. Same input, same protocol."
+echo -e "        Output shifted from developer docs to investor narrative."
+echo ""
+echo -e "  Three things to notice:"
+echo -e "    1. The identity was set ${BOLD}once${NC} — protocols read it automatically"
+echo -e "    2. Run 2 ${BOLD}explicitly quoted${NC} what Run 1 said was weak"
+echo -e "    3. The CEO version is ${BOLD}fundamentally different${NC} — not just reworded"
+echo ""
+echo -e "  ${DIM}Same five steps. Same input. Identity + memory = different system.${NC}"
 echo ""

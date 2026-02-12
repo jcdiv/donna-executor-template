@@ -93,6 +93,8 @@ curl https://your-worker.workers.dev/executions \
 
 | Method | Path | Description |
 |--------|------|-------------|
+| PUT | `/identity` | Store identity (shapes all protocol output) |
+| GET | `/identity` | Retrieve stored identity |
 | POST | `/run` | Execute protocol by key from KV |
 | POST | `/exec` | Execute single primitive |
 | POST | `/batch` | Execute raw steps array |
@@ -280,13 +282,41 @@ crons = ["0 */4 * * *"]  # Every 4 hours
 
 The core differentiator: **run a protocol twice and the second run is better than the first**. Not because of a better prompt — because it remembers what it did last time and what it got wrong.
 
-### Quick demo
+### Run the demo
 
 ```bash
 ./scripts/demo.sh https://your-worker.workers.dev YOUR_ADMIN_TOKEN
 ```
 
-This saves the demo protocols, runs content-refine twice, and prints a side-by-side comparison showing compounding.
+The demo runs three acts:
+
+**Act 1: Attach Identity** — Store who you are. Set it once, it persists.
+
+```bash
+curl -X PUT https://your-worker.workers.dev/identity \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"identity": "Developer advocate at a startup. I write technical blog posts."}'
+```
+
+**Act 2: Compounding** — Run `content_refine` twice with the same input. Run 2 finds Run 1's self-critique via semantic memory search and makes different improvements.
+
+```bash
+# Run this twice — the second output will reference the first
+curl -X POST https://your-worker.workers.dev/run \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protocol_key": "content_refine",
+    "context": {
+      "text": "Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
+    }
+  }'
+```
+
+Note: no `identity` in the context — it's read automatically from the stored identity.
+
+**Act 3: Identity Shift** — Change identity to "startup CEO writing investor updates" and run the same protocol on the same input. The output transforms from developer docs into investor narrative.
 
 ### How it works
 
@@ -297,63 +327,21 @@ Run 1:                                Run 2:
   memory.log → saves to D1              memory.log → saves to D1
 ```
 
-Every run logs its output AND a self-evaluation to semantic memory. The next run finds that memory by meaning (not keyword) and explicitly addresses the prior critique. The self-evaluation is honest because it's not shown to the user — it's shown to the next run.
+Every run logs its output AND a self-evaluation to semantic memory. The next run finds that memory by meaning (not keyword) and explicitly addresses the prior critique. Identity is injected automatically — you set it once and every protocol adapts.
 
 ### Demo protocols
 
 | Protocol | Input | What compounds |
 |----------|-------|----------------|
-| `content_refine` | `identity` + `text` | Refinement strategy — each run fixes what the last run said was still weak |
-| `task_breakdown` | `identity` + `goal` | Planning quality — each run produces tighter steps based on prior self-critique |
-
-### Example: content_refine
-
-```bash
-# Save the protocol
-curl -X POST https://your-worker.workers.dev/protocols \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d @examples/content-refine.json
-
-# Run it (run this twice — compare the outputs)
-curl -X POST https://your-worker.workers.dev/run \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "protocol_key": "content_refine",
-    "context": {
-      "identity": "developer advocate writing for startup audience, values clarity over cleverness",
-      "text": "Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
-    }
-  }'
-```
-
-### Example: task_breakdown
-
-```bash
-curl -X POST https://your-worker.workers.dev/protocols \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d @examples/task-breakdown.json
-
-curl -X POST https://your-worker.workers.dev/run \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "protocol_key": "task_breakdown",
-    "context": {
-      "identity": "solo founder, technical, building a B2B SaaS, limited time",
-      "goal": "Launch a landing page that converts developer signups by end of week"
-    }
-  }'
-```
+| `content_refine` | `text` (identity auto-injected) | Refinement strategy — each run fixes what the last run said was still weak |
+| `task_breakdown` | `goal` (identity auto-injected) | Planning quality — each run produces tighter steps based on prior self-critique |
 
 ### The identity anchor
 
-Change the identity and the output changes entirely. Same protocol, different person, different result:
-- `"developer advocate writing for startup audience"` → technical specifics, code examples
-- `"startup CEO writing investor updates"` → metrics, traction, strategic framing
-- `"junior dev documenting an internal tool"` → step-by-step clarity, no assumptions
+Same protocol, same input, different person — fundamentally different output:
+- **Developer advocate** → curl examples, JSON responses, rate limits, quickstart links
+- **Startup CEO** → "$2.4M pipeline acceleration", "12 design partners", "$8B market", "ecosystem lock-in"
+- **Junior dev** → step-by-step clarity, no assumptions, glossary of terms
 
 ## License
 
