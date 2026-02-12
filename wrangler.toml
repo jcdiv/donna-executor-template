@@ -11,5 +11,8 @@ database_id = ""  # Run: npx wrangler d1 create donna-executor-db
 binding = "REGISTRY_KV"
 id = ""  # Run: npx wrangler kv namespace create REGISTRY_KV
 
+[ai]
+binding = "AI"  # Workers AI — free tier, used for memory embeddings
+
 [triggers]
 crons = ["0 * * * *"]

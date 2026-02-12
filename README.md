@@ -10,7 +10,7 @@ Deploy autonomous protocol execution to your own Cloudflare Workers account. No 
 
 A standalone execution engine that runs multi-step automation protocols on Cloudflare's edge. It gives you:
 
-- **15 composable primitives** — HTTP, LLM (Claude/GPT/Grok), data transforms, control flow, logging
+- **16 composable primitives** — HTTP, LLM (Claude/GPT/Grok), semantic memory, data transforms, control flow, logging
 - **KV-based API registry** — Register any REST API, call it with enforced auth and validation
 - **Protocol storage** — Save and run multi-step workflows via simple JSON
 - **Cron scheduling** — Run protocols on a schedule
@@ -40,6 +40,8 @@ Update `wrangler.toml` with the IDs from the output above, then:
 
 ```bash
 npx wrangler d1 execute donna-executor-db --remote --file migrations/0001_executions.sql
+npx wrangler d1 execute donna-executor-db --remote --file migrations/0002_llm_usage.sql
+npx wrangler d1 execute donna-executor-db --remote --file migrations/0003_memories.sql
 ```
 
 ### 2. Set secrets
@@ -159,7 +161,8 @@ Protocols are JSON arrays of steps. Each step calls a primitive and can referenc
 | `http.fetch` | Raw HTTP requests |
 | `http.registry_fetch` | Registry-enforced HTTP with auto-auth |
 | `llm.generate` | Claude, GPT, or Grok text generation |
-| `memory.log` | Log events to D1 |
+| `memory.log` | Log events to D1 + semantic memory |
+| `memory.search` | Semantic search over stored memories |
 | `validate.schema` | Pre-flight data validation |
 | `util.foreach` | Array iteration with nested steps |
 | `util.conditional` | If/else ternary logic |
@@ -250,7 +253,7 @@ crons = ["0 */4 * * *"]  # Every 4 hours
 +----------+     +-----------+-----------+     +----------+
 |  Client  +---->|   Worker (worker.js)  +---->| External |
 |  (curl)  |     |                       |     |   APIs   |
-+----------+     |  15 primitives        |     +----------+
++----------+     |  16 primitives        |     +----------+
                  |  Template resolution  |
                  |  Batch execution      |     +----------+
                  |  Validation           +---->| Cloudflare|
@@ -272,6 +275,70 @@ crons = ["0 */4 * * *"]  # Every 4 hours
 | `OPENAI_API_KEY` | If using GPT | `llm.generate` with `gpt-*` models |
 | `XAI_API_KEY` | If using Grok | `llm.generate` with `grok-*` models |
 | `{SERVICE}_TOKEN` | Per-service | Whatever `auth_env` your registry entries reference |
+
+## Donna Loops Demo: Visible Compounding in 90 Seconds
+
+This demo shows the core differentiator: **protocols that remember**. Run a content refinement protocol twice — the second run finds the first run's self-evaluation and makes *different* improvements. No prompt injection. Real semantic memory.
+
+### Setup (one-time)
+
+After deploying (steps above), run the memories migration and save the demo protocol:
+
+```bash
+# Run memories migration
+npx wrangler d1 execute donna-executor-db --remote --file migrations/0003_memories.sql
+
+# Save the content refinement protocol
+curl -X POST https://your-worker.workers.dev/protocols \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @examples/content-refine.json
+```
+
+### Run 1: First Pass
+
+```bash
+curl -X POST https://your-worker.workers.dev/run \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "protocol_key": "content_refine",
+    "context": {
+      "identity": "I am a developer advocate who writes technical blog posts for a startup audience. I value clarity over cleverness and prefer concrete examples over abstract theory.",
+      "text": "Our new API lets you do stuff with data. It has endpoints for getting things and putting things. The authentication uses tokens. Contact us for more info."
+    }
+  }'
+```
+
+Run 1 outputs: refined text, improvements made, and a self-evaluation noting what's still weak. This gets logged to semantic memory.
+
+### Run 2: Compounding
+
+Run the **exact same command** again. The protocol:
+
+1. Searches memory for prior refinements of similar content
+2. Finds Run 1's self-evaluation and `what_id_do_differently_next_time`
+3. Explicitly references what the prior run noted
+4. Makes *different* improvements addressing the prior self-critique
+
+Compare the two outputs side-by-side. Run 2 will say something like: "In my previous refinement, I noted that [X]. This time I specifically addressed that by [Y]."
+
+### What's happening under the hood
+
+```
+Run 1:                                Run 2:
+  util.time                             util.time
+  memory.search → (empty)               memory.search → finds Run 1
+  llm.generate → refine + self-eval     llm.generate → reads prior eval, refines differently
+  validate.schema                       validate.schema
+  memory.log → saves to D1              memory.log → saves to D1
+```
+
+The identity anchor matters: change "developer advocate" to "startup CEO writing investor updates" and the refinements shift entirely. Same protocol, different person, different output.
+
+### Try your own content
+
+Change `text` and `identity` to anything. The protocol adapts to who you are and what you're writing. Run it three times — each run builds on all prior runs.
 
 ## License
 

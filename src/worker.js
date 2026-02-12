@@ -89,6 +89,32 @@ function substituteEnvVars(headers, env) {
   return substituted;
 }
 
+// ===== EMBEDDING HELPERS =====
+
+function cosineSimilarity(a, b) {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+async function computeEmbedding(env, text) {
+  if (!env.AI) return null;
+  try {
+    const truncated = typeof text === 'string' ? text.substring(0, 2000) : JSON.stringify(text).substring(0, 2000);
+    const result = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: [truncated] });
+    return result?.data?.[0] || null;
+  } catch (err) {
+    console.log('[embedding] Workers AI failed:', err.message);
+    return null;
+  }
+}
+
 // ===== SAFETY LIMITS =====
 
 const MAX_FOREACH_ITERATIONS_HARD_CAP = 100;
@@ -333,12 +359,94 @@ const PRIMITIVES = {
       }
     }
 
+    // Also write to memories table for semantic search
+    let memoryId = null;
+    if (env.DB && payload) {
+      try {
+        memoryId = `mem-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        const contentStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+        const embedding = await computeEmbedding(env, contentStr);
+        const embeddingStr = embedding ? JSON.stringify(embedding) : null;
+
+        await env.DB.prepare(`
+          INSERT INTO memories (id, run_id, event, content, metadata, embedding, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          memoryId, runId, event, contentStr,
+          JSON.stringify({ protocol_key: protocol_key || event }),
+          embeddingStr, timestamp
+        ).run();
+      } catch (memErr) {
+        console.log('[memory.log] Memories table write failed:', memErr.message);
+        memoryId = null;
+      }
+    }
+
     return {
       ok: d1Result.ok,
       status: d1Result.ok ? 200 : 500,
-      data: { d1_id: d1Result.id, timestamp },
+      data: { d1_id: d1Result.id, memory_id: memoryId, timestamp },
       error: d1Result.ok ? undefined : d1Result.error
     };
+  },
+
+  // memory.search — Semantic search over stored memories
+  async 'memory.search'(env, args, runId) {
+    const { query, top_k = 5, event_filter } = args;
+    if (!query || typeof query !== 'string') {
+      return { ok: false, error: 'Query string required' };
+    }
+    if (!env.DB) {
+      return { ok: true, status: 200, data: [] };
+    }
+
+    // Compute query embedding
+    const queryEmbedding = await computeEmbedding(env, query);
+
+    // Fetch memories (with optional event filter)
+    let rows;
+    try {
+      if (event_filter) {
+        const result = await env.DB.prepare(
+          'SELECT id, run_id, event, content, metadata, embedding, created_at FROM memories WHERE event = ? ORDER BY created_at DESC LIMIT 200'
+        ).bind(event_filter).all();
+        rows = result.results || [];
+      } else {
+        const result = await env.DB.prepare(
+          'SELECT id, run_id, event, content, metadata, embedding, created_at FROM memories ORDER BY created_at DESC LIMIT 200'
+        ).all();
+        rows = result.results || [];
+      }
+    } catch (dbErr) {
+      return { ok: false, error: `Memory query failed: ${dbErr.message}` };
+    }
+
+    // If no AI binding or no query embedding, fall back to recency
+    if (!queryEmbedding) {
+      const fallback = rows.slice(0, top_k).map(r => {
+        let content;
+        try { content = JSON.parse(r.content); } catch { content = r.content; }
+        return { id: r.id, event: r.event, content, similarity: null, created_at: r.created_at };
+      });
+      return { ok: true, status: 200, data: fallback };
+    }
+
+    // Score by cosine similarity
+    const scored = rows
+      .filter(r => r.embedding)
+      .map(r => {
+        let storedEmbedding;
+        try { storedEmbedding = JSON.parse(r.embedding); } catch { return null; }
+        const similarity = cosineSimilarity(queryEmbedding, storedEmbedding);
+        let content;
+        try { content = JSON.parse(r.content); } catch { content = r.content; }
+        return { id: r.id, event: r.event, content, similarity, created_at: r.created_at };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, top_k);
+
+    return { ok: true, status: 200, data: scored };
   },
 
   // http.fetch — Raw HTTP requests
@@ -1072,9 +1180,14 @@ const PRIMITIVES = {
 
 const PRIMITIVE_MANIFEST = {
   'memory.log': {
-    description: 'Log events to D1 executions table',
+    description: 'Log events to D1 executions table and memories table with semantic embedding',
     input_schema: { required: ['event'], optional: ['payload', 'protocol_key', 'duration_ms', 'source', 'execution_status', 'error_details'],
       parameters: { event: { type: 'string', description: 'Event name' }, payload: { type: 'object', description: 'Event data' }, protocol_key: { type: 'string', description: 'Protocol key' }, duration_ms: { type: 'number', description: 'Duration in ms' }, source: { type: 'string', description: 'scheduled|manual|test' }, execution_status: { type: 'string', description: 'success|failed|halted' }, error_details: { type: 'string', description: 'Error message' } } }
+  },
+  'memory.search': {
+    description: 'Semantic search over stored memories using Workers AI embeddings',
+    input_schema: { required: ['query'], optional: ['top_k', 'event_filter'],
+      parameters: { query: { type: 'string', description: 'Search query (matched by meaning)' }, top_k: { type: 'number', description: 'Number of results to return (default 5)' }, event_filter: { type: 'string', description: 'Filter by event type' } } }
   },
   'http.fetch': {
     description: 'Make raw HTTP requests',
