@@ -24,7 +24,7 @@
       "name": "Refine content using identity + prior memory",
       "primitive": "llm.generate",
       "args": {
-        "model": "claude-sonnet-4-5-20250929",
+        "model": "claude-haiku-4-5-20251001",
         "max_tokens": 3000,
         "prompt": "You are a writing refinement system. Take rough text and make it better.\n\nUSER IDENTITY:\n{{context.identity}}\n\nTEXT TO REFINE:\n{{context.text}}\n\nPRIOR REFINEMENT MEMORY:\n{{step_2}}\n\n== RULES ==\n\n1. Keep refined_text CONCISE — max 100 words plain text. NO markdown, NO code blocks, NO curly braces in the text. Use dashes for lists.\n2. If prior memories exist (non-empty array above): read the self_evaluation and what_id_do_differently_next_time. EXPLICITLY quote what the prior run noted and make DIFFERENT improvements. Set prior_run_referenced: true.\n3. If no prior memories (empty array): first pass. Focus on clarity and audience fit. Set prior_run_referenced: false.\n4. Be brutally honest in self_evaluation.\n5. ESCAPE all special characters in string values. No unescaped quotes or braces.\n\nReturn ONLY valid JSON (no markdown fences, NOT an array). All 6 fields required:\n{\"refined_text\": \"plain text, max 100 words\", \"improvements_made\": [\"change 1\", \"change 2\"], \"self_evaluation\": \"what is still weak\", \"what_id_do_differently_next_time\": \"concrete next-pass strategy\", \"prior_run_referenced\": false, \"prior_run_improvements\": null}"
       }

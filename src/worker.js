@@ -1690,6 +1690,796 @@ function buildAuthoringContext() {
   };
 }
 
+// ===== DEMO PAGE =====
+
+const DEMO_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DONNA SYSTEMS | AI That Knows Who You Are</title>
+<meta name="description" content="What if AI knew who you are and got better every time? Live demo of persistent identity and self-improving protocols.">
+<meta property="og:title" content="DONNA SYSTEMS">
+<meta property="og:description" content="AI that knows who you are and gets better every time. Watch the live demo.">
+<meta property="og:url" content="https://donnasystems.ai">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DONNA SYSTEMS">
+<meta name="twitter:description" content="AI that knows who you are and gets better every time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0a; --bg-card: #111; --bg-alt: #0d0d0d;
+  --border: #222; --border-light: #333;
+  --text: #e5e5e5; --text-dim: #888; --text-muted: #555;
+  --green: #00e87b; --green-dim: #00c968; --green-glow: rgba(0,232,123,0.12);
+  --red: #ef4444; --gold: #eab308;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--bg); color: #b0b0b0; font-size: 16px; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+
+/* Matrix rain */
+#matrix-rain { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; opacity: 0; transition: opacity 1.5s ease; }
+#matrix-rain.active { opacity: 0.6; }
+.noise { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.03; z-index: 1000; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
+
+main, footer { position: relative; z-index: 2; }
+.container { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+.container-wide { max-width: 960px; margin: 0 auto; padding: 0 32px; }
+
+/* Header */
+header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(10,10,10,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+nav { max-width: 900px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+.logo { font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: 0.1em; color: var(--text); text-decoration: none; }
+.nav-right { display: flex; align-items: center; gap: 24px; }
+.nav-link { font-family: var(--mono); font-size: 13px; color: var(--text-dim); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; }
+.nav-link:hover { color: var(--text); }
+.nav-cta { font-family: var(--mono); font-size: 13px; color: var(--green); text-decoration: none; padding: 8px 16px; border: 1px solid var(--green); border-radius: 4px; transition: all 0.2s; }
+.nav-cta:hover { background: var(--green); color: var(--bg); }
+
+/* Hero */
+.hero { text-align: center; padding: 160px 0 48px; }
+.hero h1 { font-family: var(--mono); font-size: clamp(26px, 4.5vw, 40px); font-weight: 700; color: #fff; line-height: 1.25; margin-bottom: 20px; letter-spacing: -0.02em; }
+.lead { font-size: 17px; color: var(--text-dim); margin-bottom: 10px; max-width: 600px; margin-left: auto; margin-right: auto; }
+.lead strong { color: var(--text); }
+.lead em { color: #ccc; }
+.btn-demo { display: inline-block; background: var(--green); color: var(--bg); border: none; padding: 16px 40px; border-radius: 8px; font-family: var(--mono); font-size: 16px; font-weight: 600; cursor: pointer; margin: 28px 0 12px; letter-spacing: 0.3px; transition: background 0.2s; }
+.btn-demo:hover { background: var(--green-dim); }
+.btn-demo:disabled { background: #222; color: #555; cursor: wait; }
+.btn-note { font-size: 13px; color: var(--text-muted); }
+
+/* How it works */
+.how { padding: 0 0 48px; }
+.how h2 { font-family: var(--mono); font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+.how > .container > p { color: var(--text-dim); font-size: 15px; margin-bottom: 20px; }
+.flow { display: flex; align-items: stretch; gap: 8px; margin: 20px 0; flex-wrap: wrap; justify-content: center; }
+.flow-node { background: #141414; border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; text-align: center; flex: 1; min-width: 120px; }
+.flow-name { font-size: 13px; font-weight: 600; color: var(--green); font-family: var(--mono); }
+.flow-desc { font-size: 12px; color: #666; margin-top: 4px; }
+.flow-arrow { color: #333; font-size: 20px; display: flex; align-items: center; }
+.flow-loop { text-align: center; color: var(--gold); font-size: 13px; margin-top: 6px; font-style: italic; }
+
+/* Stepper */
+.stepper { display: flex; gap: 6px; margin: 20px 0 32px; flex-wrap: wrap; justify-content: center; }
+.stepper-step { font-family: var(--mono); font-size: 12px; padding: 5px 14px; border-radius: 20px; background: #161616; color: #444; border: 1px solid #1e1e1e; transition: all 0.4s; }
+.stepper-step.active { background: #0a1f0a; color: var(--green); border-color: #1a3a1a; }
+.stepper-step.done { background: #0f1e0f; color: #5a9a5a; border-color: #1a3a1a; }
+
+/* Demo sections */
+.section { margin: 48px 0; animation: fadeUp 0.5s ease forwards; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.act-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #1a1a1a; border: 1px solid #2a2a2a; color: var(--text-dim); font-family: var(--mono); font-size: 14px; font-weight: 600; margin-right: 10px; vertical-align: middle; }
+.section h2 { font-family: var(--mono); }
+.explain { color: var(--text-dim); margin: 10px 0 20px; font-size: 15px; line-height: 1.7; }
+
+/* Cards */
+.card { background: #141414; border: 1px solid #1e1e1e; border-radius: 10px; padding: 20px 24px; margin: 14px 0; }
+.card.identity { border-left: 3px solid var(--green); }
+.card.identity-b { border-left: 3px solid var(--gold); }
+.card.input { border-left: 3px solid #555; }
+.card.output { border-left: 3px solid var(--green); }
+.card.found { border-left: 3px solid #88c0d0; }
+.card-label { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+.card-text { color: #ccc; font-size: 15px; line-height: 1.7; }
+.card-text.bright { color: #e0e0e0; }
+
+/* Self-evaluation */
+.eval { background: #17160e; border: 1px solid #2a2818; border-radius: 10px; padding: 20px 24px; margin: 14px 0; }
+.eval .card-label { color: var(--gold); }
+.eval .card-text { color: #cca855; font-style: italic; font-size: 14px; }
+.memory-indicator { text-align: center; margin: 10px 0; color: var(--gold); font-size: 13px; font-family: var(--mono); }
+.memory-indicator span { display: inline-block; animation: pulse 1.5s ease infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* Insight callout */
+.insight { background: #16131e; border: 1px solid #26202e; border-radius: 10px; padding: 20px 24px; margin: 24px 0; font-size: 15px; color: #a898c0; line-height: 1.7; }
+.insight strong { color: #c8a0e0; }
+
+/* Runs grid */
+.runs { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+.run-label { font-size: 14px; font-weight: 600; color: #e0e0e0; margin-bottom: 10px; }
+.badge { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 12px; margin-left: 8px; font-weight: 400; vertical-align: middle; }
+.badge-empty { background: #1a1a1a; color: #555; }
+.badge-found { background: #0d1b2a; color: #88c0d0; }
+
+/* Dividers */
+.divider { border: none; border-top: 1px solid #1a1a1a; margin: 48px 0; }
+.section-line { height: 1px; background: var(--border); margin-bottom: 48px; }
+.hidden { display: none; }
+.meta { font-family: var(--mono); font-size: 12px; color: #3a3a3a; margin-top: 8px; }
+
+/* So What section */
+.so-what { padding: 80px 0; }
+.so-what h2 { font-family: var(--mono); font-size: clamp(24px, 4vw, 36px); font-weight: 700; color: #fff; margin-bottom: 12px; }
+.section-intro { font-size: 16px; color: var(--text-dim); margin-bottom: 32px; }
+.compare { display: grid; grid-template-columns: 1fr; gap: 14px; margin: 24px 0; }
+.compare-item { background: #141414; border: 1px solid #1e1e1e; border-radius: 10px; padding: 20px 24px; }
+.compare-item.accent { border-color: rgba(0,232,123,0.25); background: var(--green-glow); }
+.compare-item h3 { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.compare-item.accent h3 { color: var(--green); }
+.compare-item p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+.insight-green { background: #0f1614; border: 1px solid #1a2a28; border-radius: 10px; padding: 20px 24px; margin: 24px 0; }
+.insight-green p { font-size: 15px; color: #8ec8c0; line-height: 1.7; margin-bottom: 12px; }
+.insight-green p:last-child { margin-bottom: 0; }
+.insight-green strong { color: var(--green); }
+.insight-green a { color: var(--green); text-decoration: none; }
+.insight-green a:hover { text-decoration: underline; }
+
+/* Why User-First section */
+.user-first { padding: 80px 0; border-top: 1px solid var(--border); }
+.section-headline { font-family: var(--mono); font-size: clamp(28px, 5vw, 48px); font-weight: 700; color: #fff; margin-bottom: 12px; letter-spacing: -0.03em; }
+.section-subtitle { font-family: var(--mono); font-size: 17px; color: var(--text-dim); margin-bottom: 48px; }
+
+/* Diagrams */
+.diagram-comparison { display: flex; gap: 24px; margin-bottom: 48px; }
+.diagram-model { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid #333; border-radius: 10px; padding: 22px 16px 18px; text-align: center; }
+.diagram-title { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: #bbb; text-transform: uppercase; margin-bottom: 16px; }
+.diagram-model svg { width: 100%; height: auto; display: block; margin: 0 auto; }
+.diagram-caption { font-family: var(--mono); font-size: 15px; color: #ccc; margin-top: 18px; line-height: 1.5; letter-spacing: 0.02em; }
+.diagram-caption strong { color: var(--green); }
+@keyframes pulse-frag { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+@keyframes center-glow { 0%, 100% { filter: drop-shadow(0 0 8px rgba(0,232,123,0.2)); } 50% { filter: drop-shadow(0 0 22px rgba(0,232,123,0.6)); } }
+.uf { animation: pulse-frag 2.8s ease-in-out infinite; }
+.cg { animation: center-glow 3s ease-in-out infinite; }
+
+/* Architecture points */
+.arch-points { display: grid; gap: 16px; }
+.arch-point { padding: 24px; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px; }
+.arch-label { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: var(--green); margin-bottom: 8px; }
+.arch-label.red-label { color: var(--red); }
+.arch-problem { border-color: rgba(239,68,68,0.2); }
+.arch-solution { border-color: rgba(0,232,123,0.25); background: var(--green-glow); }
+.arch-point p { font-size: 14px; color: var(--text-dim); line-height: 1.7; }
+.arch-point p strong { color: var(--text); }
+
+/* Model chips */
+.model-section { margin-top: 48px; padding: 32px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center; }
+.model-section-header { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 20px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.model-chip { font-family: var(--mono); font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 6px; }
+.chip-chatgpt { color: #10a37f; border: 1px solid rgba(16,163,127,0.3); background: rgba(16,163,127,0.08); }
+.chip-claude { color: #d97757; border: 1px solid rgba(217,119,87,0.3); background: rgba(217,119,87,0.08); }
+.chip-grok { color: #e5e5e5; border: 1px solid rgba(229,229,229,0.3); background: rgba(229,229,229,0.06); }
+.chip-gemini { color: #4285f4; border: 1px solid rgba(66,133,244,0.3); background: rgba(66,133,244,0.08); }
+
+/* Waitlist */
+.waitlist { padding: 80px 0; text-align: center; border-top: 1px solid var(--border); }
+.waitlist h2 { font-family: var(--mono); font-size: clamp(28px, 5vw, 42px); font-weight: 700; color: #fff; margin-bottom: 16px; }
+.waitlist-desc { color: var(--text-dim); margin-bottom: 48px; font-size: 15px; }
+.waitlist-form { max-width: 480px; margin: 0 auto 64px; }
+.input-wrapper { display: flex; gap: 12px; margin-bottom: 12px; }
+.waitlist-form input { flex: 1; padding: 14px 18px; font-family: var(--mono); font-size: 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); outline: none; transition: border-color 0.2s; }
+.waitlist-form input:focus { border-color: var(--green); }
+.waitlist-form input::placeholder { color: var(--text-muted); }
+.waitlist-form button { padding: 14px 24px; font-family: var(--mono); font-size: 14px; font-weight: 500; background: var(--green); color: var(--bg); border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.waitlist-form button:hover { background: var(--green-dim); }
+.waitlist-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+.form-note { font-size: 12px; color: var(--text-muted); }
+.form-success { font-size: 14px; color: var(--green); margin-top: 16px; display: none; }
+.form-error { font-size: 14px; color: var(--red); margin-top: 16px; display: none; }
+
+/* Concierge */
+.setup-offer { max-width: 520px; margin: 0 auto; padding: 32px; background: var(--bg-alt); border: 1px solid var(--border-light); border-radius: 8px; text-align: left; }
+.offer-badge { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--green); background: var(--green-glow); padding: 4px 10px; border-radius: 4px; margin-bottom: 16px; }
+.setup-offer h3 { font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+.setup-offer p { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin-bottom: 20px; }
+.offer-cta { display: inline-block; font-family: var(--mono); font-size: 14px; color: var(--green); text-decoration: none; padding: 10px 20px; border: 1px solid var(--green); border-radius: 4px; transition: all 0.2s; }
+.offer-cta:hover { background: var(--green); color: var(--bg); text-decoration: none; }
+
+/* Technical */
+.technical { padding: 32px 0 0; }
+details { margin-top: 0; }
+summary { font-family: var(--mono); color: #444; cursor: pointer; font-size: 14px; }
+summary:hover { color: #666; }
+pre { background: #111; padding: 16px; border-radius: 8px; font-size: 12px; color: #666; margin-top: 10px; overflow-x: auto; font-family: var(--mono); white-space: pre-wrap; line-height: 1.5; }
+
+/* Footer */
+footer { padding: 48px 0; border-top: 1px solid var(--border); margin-top: 48px; }
+.footer-content { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.footer-brand { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: var(--text-dim); }
+.footer-content a { font-family: var(--mono); font-size: 13px; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+.footer-content a:hover { color: var(--green); }
+.footer-copy { font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+
+/* Links */
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero { padding: 120px 0 48px; }
+  .runs { grid-template-columns: 1fr; }
+  .diagram-comparison { flex-direction: column; gap: 16px; }
+  .input-wrapper { flex-direction: column; }
+  .waitlist-form button { width: 100%; }
+  .footer-content { flex-direction: column; gap: 16px; text-align: center; }
+  .container-wide { padding: 0 16px; }
+  .nav-link { display: none; }
+}
+@media (max-width: 480px) {
+  body { font-size: 14px; }
+  .container { padding: 0 16px; }
+  .container-wide { padding: 0 12px; }
+  nav { padding: 12px 16px; }
+  .nav-cta { font-size: 12px; padding: 6px 12px; }
+  .arch-point { padding: 20px; }
+  .setup-offer { padding: 24px; }
+}
+</style>
+</head>
+<body>
+<canvas id="matrix-rain"></canvas>
+<div class="noise"></div>
+
+<header>
+  <nav>
+    <a href="/" class="logo">DONNA SYSTEMS</a>
+    <div class="nav-right">
+      <a href="/architecture" class="nav-link">Architecture</a>
+      <a href="#waitlist" class="nav-cta">Get Early Access</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <h1>What if AI knew who you are &mdash; and got better every time?</h1>
+      <p class="lead">Most AI doesn't know who you are. It doesn't remember what it did last time. Every interaction starts from zero.</p>
+      <p class="lead">This live demo shows an AI system that <strong>persists your identity</strong>, <strong>learns from its own work</strong>, and produces fundamentally different output for different people.</p>
+      <button class="btn-demo" id="run-btn" onclick="runDemo()">Watch It Happen</button>
+      <p class="btn-note">Three live AI calls. About 20 seconds.</p>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how">
+    <div class="container">
+      <h2>How it works</h2>
+      <p>Every time this protocol runs, it follows the same five steps. The difference is what the system <em>remembers</em> from last time and who it thinks <em>you</em> are.</p>
+      <div class="flow">
+        <div class="flow-node"><div class="flow-name">search memory</div><div class="flow-desc">Find what happened last time</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node"><div class="flow-name">generate</div><div class="flow-desc">AI writes, shaped by identity + memory</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node"><div class="flow-name">validate</div><div class="flow-desc">Check the output structure</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node"><div class="flow-name">remember</div><div class="flow-desc">Save output + honest self-critique</div></div>
+      </div>
+      <div class="flow-loop">&larr; next run finds this self-critique and does better &larr;</div>
+    </div>
+  </section>
+
+  <!-- DEMO (progressive) -->
+  <div class="container">
+    <div id="stepper" class="stepper hidden">
+      <span class="stepper-step" id="s0">Reset</span>
+      <span class="stepper-step" id="s1">Identity</span>
+      <span class="stepper-step" id="s2">Run 1</span>
+      <span class="stepper-step" id="s3">Run 2</span>
+      <span class="stepper-step" id="s4">New Identity</span>
+      <span class="stepper-step" id="s5">Run 3</span>
+    </div>
+
+    <!-- Act 1: Identity -->
+    <div id="act1" class="hidden">
+      <hr class="divider">
+      <div class="section">
+        <h2><span class="act-num">1</span>Tell it who you are</h2>
+        <p class="explain">Before anything runs, we store an identity. This isn't a one-time chat prompt that disappears when you close the window &mdash; it persists permanently. Every future task the system runs will adapt to this person automatically, without being reminded.</p>
+        <div class="card identity"><div class="card-label">Stored Identity</div><div class="card-text" id="id-a"></div></div>
+        <div class="insight"><strong>Why this matters:</strong> Today's AI chatbots forget who you are the moment you close the tab. Here, identity is infrastructure. Set it once &mdash; every protocol adapts.</div>
+      </div>
+    </div>
+
+    <!-- Act 2: Compounding -->
+    <div id="act2-intro" class="hidden">
+      <hr class="divider">
+      <div class="section">
+        <h2><span class="act-num">2</span>Watch it learn from itself</h2>
+        <p class="explain">We give the system this deliberately vague paragraph and ask it to improve it. It will rewrite it, then <em>honestly critique its own work</em> and save that critique to memory. Then we'll run the exact same protocol again and watch what changes.</p>
+        <div class="card input"><div class="card-label">Input text (deliberately vague)</div><div class="card-text" id="input-text"></div></div>
+      </div>
+    </div>
+
+    <!-- Run 1 -->
+    <div id="act2-run1" class="hidden">
+      <div class="section">
+        <div class="runs">
+          <div>
+            <div class="run-label">First run <span class="badge badge-empty">no memory yet</span></div>
+            <div class="card output"><div class="card-label">Refined text</div><div class="card-text bright" id="r1-text"></div></div>
+            <div class="eval"><div class="card-label">The system's honest self-evaluation</div><div class="card-text" id="r1-eval"></div></div>
+            <div class="eval" style="background:#12160e;border-color:#1e2a18;"><div class="card-label" style="color:#7ec47e;">What it would do differently next time</div><div class="card-text" style="color:#6aaa6a;font-style:italic;" id="r1-next"></div></div>
+            <div class="memory-indicator"><span>&darr;</span> Saved to semantic memory</div>
+            <div class="meta" id="r1-meta"></div>
+          </div>
+          <div id="r2-col" style="opacity:0.15;">
+            <div class="run-label">Second run <span class="badge badge-empty">waiting...</span></div>
+            <div class="card" style="min-height:200px;display:flex;align-items:center;justify-content:center;">
+              <div style="color:#333;font-size:14px;text-align:center;">Running the same protocol again...<br>This time it has memory.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run 2 -->
+    <div id="act2-run2" class="hidden">
+      <div class="section">
+        <div style="margin-top:-32px;">
+          <div class="card found"><div class="card-label" style="color:#88c0d0;">What Run 2 found from Run 1's self-critique</div><div class="card-text" id="r2-prior"></div></div>
+          <div class="card output"><div class="card-label">Refined text (different from Run 1)</div><div class="card-text bright" id="r2-text"></div></div>
+          <div class="eval"><div class="card-label">New self-evaluation (new critique, not a repeat)</div><div class="card-text" id="r2-eval"></div></div>
+          <div class="meta" id="r2-meta"></div>
+        </div>
+        <div class="insight"><strong>This is compounding.</strong> The second run explicitly addressed what the first run said was weak. It didn't just rewrite &mdash; it read its own prior critique and made <em>different</em> improvements. Run this protocol 10 times and the 10th version addresses critiques from runs 1 through 9. Not because of a better prompt &mdash; because the system remembers what it got wrong.</div>
+      </div>
+    </div>
+
+    <!-- Act 3: Identity shift -->
+    <div id="act3" class="hidden">
+      <hr class="divider">
+      <div class="section">
+        <h2><span class="act-num">3</span>Same input. Different person. Everything changes.</h2>
+        <p class="explain">We keep the exact same input paragraph. We keep the exact same five-step protocol. The only thing we change is the identity. Watch how the output doesn't just get reworded &mdash; it gets fundamentally restructured for a different person with different needs.</p>
+        <div class="card identity-b"><div class="card-label">New Identity</div><div class="card-text" id="id-b"></div></div>
+        <div class="card output"><div class="card-label">Refined text (same input, completely different output)</div><div class="card-text bright" id="r3-text"></div></div>
+        <div class="meta" id="r3-meta"></div>
+        <div class="insight"><strong>Notice what changed.</strong> It's not just different words. The structure changed. The details selected changed. The tone changed. What it assumes the reader cares about changed. Same five steps, same input &mdash; identity isn't a filter that tweaks the output. It's a lens that reshapes everything.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SO WHAT? (always visible) -->
+  <section class="so-what">
+    <div class="container">
+      <div class="section-line"></div>
+      <h2>So what? Why does this matter?</h2>
+      <p class="section-intro">Three categories of tools exist today for getting things done with AI. They each have a fundamental limitation.</p>
+      <div class="compare">
+        <div class="compare-item">
+          <h3>AI Chatbots (ChatGPT, Claude, Gemini)</h3>
+          <p>Great at answering questions. But every conversation starts from zero. Close the window &mdash; everything is gone. The AI doesn't know who you are unless you tell it every single time. It never gets better at what it does for <em>you</em>.</p>
+        </div>
+        <div class="compare-item">
+          <h3>Automation Tools (Zapier, Make, n8n)</h3>
+          <p>Great at repeating steps. But they're deterministic &mdash; no judgment, no learning, no adaptation. Step 3 does the exact same thing on run 1,000 as it did on run 1. They can't evaluate their own work or decide to try something different.</p>
+        </div>
+        <div class="compare-item accent">
+          <h3>Donna</h3>
+          <p>Protocols that remember what they did, honestly evaluate themselves, and improve next time. Identity that persists and shapes every output. The system gets better the more you use it &mdash; without anyone touching the code.</p>
+        </div>
+      </div>
+      <div class="insight-green">
+        <p><strong>A new category is emerging.</strong> A new kind of AI system is appearing &mdash; <em>user-aligned autonomous agents</em>. Unlike chatbots (which wait for you to ask) or automation tools (which repeat forever), these systems run autonomously, learn over time, and align with the user's goals instead of the platform's.</p>
+        <p>Donna is one example. <a href="https://www.openclaw.org" target="_blank">Open Claw</a> is another. What they have in common: they don't just respond to you &mdash; they <em>work for you</em> while you're not looking. They get better because they remember. They're different for every user because they know who you are.</p>
+        <p style="color:#7ab8b0;">This is the gap between "AI that answers questions" and "AI that actually works for you." The systems that close this gap will define the next wave.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY USER-FIRST WINS (always visible) -->
+  <section class="user-first">
+    <div class="container-wide">
+      <h2 class="section-headline">Why User-First Systems Will Win</h2>
+      <p class="section-subtitle">Three approaches to building AI agents. Two are structurally broken.</p>
+
+      <div class="diagram-comparison">
+        <div class="diagram-model">
+          <div class="diagram-title">Platform-Centric</div>
+          <svg viewBox="0 0 500 400">
+            <rect x="12" y="8" width="225" height="118" rx="10" fill="#151515" stroke="#444" stroke-width="1.8"/>
+            <text x="124" y="40" text-anchor="middle" font-size="20" fill="#eee" font-weight="700" font-family="JetBrains Mono, monospace">Google</text>
+            <text x="124" y="64" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your searches</text>
+            <text x="124" y="82" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your emails</text>
+            <text x="124" y="100" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your location</text>
+            <text class="uf" x="124" y="119" text-anchor="middle" font-size="11" fill="#00e87b" font-weight="700" font-family="JetBrains Mono, monospace" style="animation-delay:0s">you</text>
+            <rect x="263" y="8" width="225" height="118" rx="10" fill="#151515" stroke="#444" stroke-width="1.8"/>
+            <text x="375" y="40" text-anchor="middle" font-size="20" fill="#eee" font-weight="700" font-family="JetBrains Mono, monospace">Apple</text>
+            <text x="375" y="64" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your texts</text>
+            <text x="375" y="82" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your health data</text>
+            <text x="375" y="100" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your photos</text>
+            <text class="uf" x="375" y="119" text-anchor="middle" font-size="11" fill="#00e87b" font-weight="700" font-family="JetBrains Mono, monospace" style="animation-delay:0.5s">you</text>
+            <rect x="12" y="141" width="225" height="118" rx="10" fill="#151515" stroke="#444" stroke-width="1.8"/>
+            <text x="124" y="168" text-anchor="middle" font-size="20" fill="#eee" font-weight="700" font-family="JetBrains Mono, monospace">Social</text>
+            <text x="124" y="186" text-anchor="middle" font-size="10" fill="#777" font-family="JetBrains Mono, monospace">Instagram / X / TikTok / LinkedIn</text>
+            <text x="124" y="206" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your relationships</text>
+            <text x="124" y="224" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your opinions</text>
+            <text x="124" y="242" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your attention</text>
+            <text class="uf" x="124" y="255" text-anchor="middle" font-size="11" fill="#00e87b" font-weight="700" font-family="JetBrains Mono, monospace" style="animation-delay:1s">you</text>
+            <rect x="263" y="141" width="225" height="118" rx="10" fill="#151515" stroke="#444" stroke-width="1.8"/>
+            <text x="375" y="173" text-anchor="middle" font-size="20" fill="#eee" font-weight="700" font-family="JetBrains Mono, monospace">Amazon</text>
+            <text x="375" y="197" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your purchases</text>
+            <text x="375" y="215" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your habits</text>
+            <text x="375" y="233" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your home (Alexa)</text>
+            <text class="uf" x="375" y="252" text-anchor="middle" font-size="11" fill="#00e87b" font-weight="700" font-family="JetBrains Mono, monospace" style="animation-delay:1.5s">you</text>
+            <rect x="12" y="274" width="225" height="118" rx="10" fill="#151515" stroke="#444" stroke-width="1.8"/>
+            <text x="124" y="306" text-anchor="middle" font-size="20" fill="#eee" font-weight="700" font-family="JetBrains Mono, monospace">Your Bank</text>
+            <text x="124" y="330" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your income</text>
+            <text x="124" y="348" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your spending</text>
+            <text x="124" y="366" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your debt</text>
+            <text class="uf" x="124" y="385" text-anchor="middle" font-size="11" fill="#00e87b" font-weight="700" font-family="JetBrains Mono, monospace" style="animation-delay:2s">you</text>
+            <rect x="263" y="274" width="225" height="118" rx="10" fill="#151515" stroke="#444" stroke-width="1.8"/>
+            <text x="375" y="306" text-anchor="middle" font-size="20" fill="#eee" font-weight="700" font-family="JetBrains Mono, monospace">Spotify</text>
+            <text x="375" y="330" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your music</text>
+            <text x="375" y="348" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your moods</text>
+            <text x="375" y="366" text-anchor="middle" font-size="13" fill="#aaa" font-family="JetBrains Mono, monospace">your routines</text>
+            <text class="uf" x="375" y="385" text-anchor="middle" font-size="11" fill="#00e87b" font-weight="700" font-family="JetBrains Mono, monospace" style="animation-delay:2.3s">you</text>
+          </svg>
+          <div class="diagram-caption">You're inside <strong>their</strong> walls. You power <strong>their</strong> system.</div>
+        </div>
+        <div class="diagram-model">
+          <div class="diagram-title">User-First</div>
+          <svg viewBox="0 0 500 400">
+            <line x1="250" y1="50" x2="250" y2="200" stroke="rgba(0,232,123,0.25)" stroke-width="1.5"/>
+            <line x1="415" y1="125" x2="250" y2="200" stroke="rgba(0,232,123,0.25)" stroke-width="1.5"/>
+            <line x1="415" y1="275" x2="250" y2="200" stroke="rgba(0,232,123,0.25)" stroke-width="1.5"/>
+            <line x1="250" y1="350" x2="250" y2="200" stroke="rgba(0,232,123,0.25)" stroke-width="1.5"/>
+            <line x1="85" y1="275" x2="250" y2="200" stroke="rgba(0,232,123,0.25)" stroke-width="1.5"/>
+            <line x1="85" y1="125" x2="250" y2="200" stroke="rgba(0,232,123,0.25)" stroke-width="1.5"/>
+            <circle r="3.5" fill="#00e87b"><animateMotion dur="2s" repeatCount="indefinite" path="M 250 50 L 250 200" begin="0s"/><animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.7;1" dur="2s" repeatCount="indefinite" begin="0s"/></circle>
+            <circle r="2" fill="#00e87b"><animateMotion dur="2.5s" repeatCount="indefinite" path="M 250 50 L 250 200" begin="1.1s"/><animate attributeName="opacity" values="0;0.5;0.5;0" keyTimes="0;0.12;0.7;1" dur="2.5s" repeatCount="indefinite" begin="1.1s"/></circle>
+            <circle r="3.5" fill="#00e87b"><animateMotion dur="2.4s" repeatCount="indefinite" path="M 415 125 L 250 200" begin="0.3s"/><animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.7;1" dur="2.4s" repeatCount="indefinite" begin="0.3s"/></circle>
+            <circle r="2" fill="#00e87b"><animateMotion dur="2.8s" repeatCount="indefinite" path="M 415 125 L 250 200" begin="1.4s"/><animate attributeName="opacity" values="0;0.5;0.5;0" keyTimes="0;0.12;0.7;1" dur="2.8s" repeatCount="indefinite" begin="1.4s"/></circle>
+            <circle r="3.5" fill="#00e87b"><animateMotion dur="2.4s" repeatCount="indefinite" path="M 415 275 L 250 200" begin="0.7s"/><animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.7;1" dur="2.4s" repeatCount="indefinite" begin="0.7s"/></circle>
+            <circle r="2" fill="#00e87b"><animateMotion dur="2.9s" repeatCount="indefinite" path="M 415 275 L 250 200" begin="1.8s"/><animate attributeName="opacity" values="0;0.5;0.5;0" keyTimes="0;0.12;0.7;1" dur="2.9s" repeatCount="indefinite" begin="1.8s"/></circle>
+            <circle r="3.5" fill="#00e87b"><animateMotion dur="2s" repeatCount="indefinite" path="M 250 350 L 250 200" begin="0.4s"/><animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.7;1" dur="2s" repeatCount="indefinite" begin="0.4s"/></circle>
+            <circle r="2" fill="#00e87b"><animateMotion dur="2.3s" repeatCount="indefinite" path="M 250 350 L 250 200" begin="1.6s"/><animate attributeName="opacity" values="0;0.5;0.5;0" keyTimes="0;0.12;0.7;1" dur="2.3s" repeatCount="indefinite" begin="1.6s"/></circle>
+            <circle r="3.5" fill="#00e87b"><animateMotion dur="2.4s" repeatCount="indefinite" path="M 85 275 L 250 200" begin="0.5s"/><animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.7;1" dur="2.4s" repeatCount="indefinite" begin="0.5s"/></circle>
+            <circle r="2" fill="#00e87b"><animateMotion dur="2.7s" repeatCount="indefinite" path="M 85 275 L 250 200" begin="1.7s"/><animate attributeName="opacity" values="0;0.5;0.5;0" keyTimes="0;0.12;0.7;1" dur="2.7s" repeatCount="indefinite" begin="1.7s"/></circle>
+            <circle r="3.5" fill="#00e87b"><animateMotion dur="2.4s" repeatCount="indefinite" path="M 85 125 L 250 200" begin="0.9s"/><animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.12;0.7;1" dur="2.4s" repeatCount="indefinite" begin="0.9s"/></circle>
+            <circle r="2" fill="#00e87b"><animateMotion dur="2.6s" repeatCount="indefinite" path="M 85 125 L 250 200" begin="2s"/><animate attributeName="opacity" values="0;0.5;0.5;0" keyTimes="0;0.12;0.7;1" dur="2.6s" repeatCount="indefinite" begin="2s"/></circle>
+            <circle cx="250" cy="50" r="30" fill="#151515" stroke="#444" stroke-width="1.5"/>
+            <circle cx="415" cy="125" r="30" fill="#151515" stroke="#444" stroke-width="1.5"/>
+            <circle cx="415" cy="275" r="30" fill="#151515" stroke="#444" stroke-width="1.5"/>
+            <circle cx="250" cy="350" r="30" fill="#151515" stroke="#444" stroke-width="1.5"/>
+            <circle cx="85" cy="275" r="30" fill="#151515" stroke="#444" stroke-width="1.5"/>
+            <circle cx="85" cy="125" r="30" fill="#151515" stroke="#444" stroke-width="1.5"/>
+            <text x="250" y="55" text-anchor="middle" font-size="13" fill="#ccc" font-weight="600" font-family="JetBrains Mono, monospace">Google</text>
+            <text x="415" y="130" text-anchor="middle" font-size="13" fill="#ccc" font-weight="600" font-family="JetBrains Mono, monospace">Apple</text>
+            <text x="415" y="280" text-anchor="middle" font-size="13" fill="#ccc" font-weight="600" font-family="JetBrains Mono, monospace">Social</text>
+            <text x="250" y="355" text-anchor="middle" font-size="13" fill="#ccc" font-weight="600" font-family="JetBrains Mono, monospace">Amazon</text>
+            <text x="85" y="280" text-anchor="middle" font-size="13" fill="#ccc" font-weight="600" font-family="JetBrains Mono, monospace">Bank</text>
+            <text x="85" y="130" text-anchor="middle" font-size="13" fill="#ccc" font-weight="600" font-family="JetBrains Mono, monospace">Spotify</text>
+            <g class="cg">
+              <circle cx="250" cy="200" r="52" fill="rgba(0,232,123,0.12)" stroke="#00e87b" stroke-width="2.5"/>
+              <text x="250" y="207" text-anchor="middle" font-size="22" font-weight="700" fill="#00e87b" font-family="JetBrains Mono, monospace">YOU</text>
+            </g>
+          </svg>
+          <div class="diagram-caption"><strong>They</strong> power <strong>yours.</strong></div>
+        </div>
+      </div>
+
+      <div class="arch-points">
+        <div class="arch-point arch-problem">
+          <div class="arch-label red-label">MODEL PROVIDERS CAN'T BUILD YOUR AGENT</div>
+          <p>OpenAI only uses GPT. Anthropic only uses Claude. Google only uses Gemini. Each provider is locked to their own model. When a better model drops &mdash; and it always does &mdash; your entire system is stuck. An agent that can only use one brain will always be outperformed by one that can use the best brain for each job.</p>
+        </div>
+        <div class="arch-point arch-problem">
+          <div class="arch-label red-label">PLATFORMS CAN'T BUILD YOUR AGENT</div>
+          <p>Meta has your social graph but not your email. Google has your email but not your CRM. Apple has your health data but not your business. No single platform has your complete profile. Without the full picture, agents fill in the gaps with guesses. That's not automation &mdash; that's a liability.</p>
+        </div>
+        <div class="arch-point arch-solution">
+          <div class="arch-label">ONLY YOU CAN UNIFY THE PICTURE</div>
+          <p>The only thing that connects all your tools, all your data, and all your context is <strong>you.</strong> For an agent to be coherent across your entire life &mdash; personal or business &mdash; it has to be bound to you. Not to a model. Not to a platform. To the one thing that actually has the full picture.</p>
+        </div>
+      </div>
+
+      <div class="model-section">
+        <div class="model-section-header">Use any model as the brain:</div>
+        <div class="chip-row">
+          <span class="model-chip chip-chatgpt">ChatGPT</span>
+          <span class="model-chip chip-claude">Claude</span>
+          <span class="model-chip chip-grok">Grok</span>
+          <span class="model-chip chip-gemini">Gemini</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WAITLIST -->
+  <section class="waitlist" id="waitlist">
+    <div class="container">
+      <h2>Get early access</h2>
+      <p class="waitlist-desc">Donna Runtime is in private beta. Join the waitlist and we'll reach out when it's your turn.</p>
+      <form class="waitlist-form" id="waitlist-form">
+        <div class="input-wrapper">
+          <input type="email" name="email" placeholder="you@company.com" required>
+          <button type="submit"><span class="btn-text">Join Waitlist</span><span class="btn-loading" style="display:none;">...</span></button>
+        </div>
+        <p class="form-note">No spam. Just early access and occasional updates.</p>
+        <p class="form-success" id="form-success">You're on the list. We'll be in touch.</p>
+        <p class="form-error" id="form-error">Something went wrong. Try again or email us directly.</p>
+      </form>
+      <div class="setup-offer">
+        <div class="offer-badge">CONCIERGE SETUP</div>
+        <h3>$1,000 &mdash; We'll set it up for you</h3>
+        <p>Don't want to deal with deployment? We'll connect your tools, deploy to your Cloudflare, and walk you through it on a call.</p>
+        <a href="https://calendly.com/jake-donnasystems/donna-setup-call" target="_blank" rel="noopener" class="offer-cta">Book a setup call</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECHNICAL -->
+  <div class="container technical">
+    <details>
+      <summary>Under the hood: how this works</summary>
+      <div style="padding:16px 0;">
+        <p style="color:#666;font-size:14px;margin-bottom:8px;">This demo runs on <strong style="color:#888;">Cloudflare Workers</strong> &mdash; edge computing infrastructure that's globally distributed and cheap to run. The "protocol" you just watched is a simple JSON document describing 5 steps.</p>
+        <p style="color:#666;font-size:14px;margin-bottom:16px;">16 composable primitives handle everything from HTTP requests to LLM generation to semantic memory search. No custom code needed &mdash; you compose protocols by describing what steps to run and in what order.</p>
+        <pre id="proto-json"></pre>
+        <p style="color:#444;font-size:13px;margin-top:16px;">Open source: <a href="https://github.com/jcdiv/donna-executor-template">github.com/jcdiv/donna-executor-template</a></p>
+      </div>
+    </details>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-brand">DONNA SYSTEMS</div>
+      <a href="mailto:jake@donnasystems.ai">jake@donnasystems.ai</a>
+    </div>
+    <div class="footer-copy">&copy; 2026 DONNA SYSTEMS LLC.</div>
+  </div>
+</footer>
+
+<script>
+var IDENTITY_A = "I'm planning a two-week trip to Italy with my family. Two teenagers who get bored easily. We want a mix of culture, food, and adventure without three-hour museum tours. Budget is around $5,000.";
+var IDENTITY_B = "I'm a food and wine writer for a luxury travel magazine. My readers have already done Rome and Florence. They want authentic, off-the-beaten-path experiences that most tourists never find.";
+var INPUT_TEXT = "Italy is a country in Europe. It has good food and old buildings. You can visit cities and see things. The weather is usually nice. People speak Italian there.";
+
+function post(path, body) {
+  return fetch(path, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }).then(function(r) { return r.json(); });
+}
+
+function show(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('hidden');
+  setTimeout(function() { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+}
+
+function setStep(n, state) {
+  var el = document.getElementById('s' + n);
+  if (el) el.className = 'stepper-step ' + state;
+}
+
+function runDemo() {
+  var btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  show('stepper');
+
+  setStep(0, 'active');
+  post('/demo/run', { act: 'reset' }).then(function() {
+    setStep(0, 'done');
+    setStep(1, 'active');
+    return post('/demo/run', { act: 'setup', identity: IDENTITY_A });
+  }).then(function() {
+    document.getElementById('id-a').textContent = IDENTITY_A;
+    show('act1');
+    setStep(1, 'done');
+    document.getElementById('input-text').textContent = INPUT_TEXT;
+    show('act2-intro');
+    setStep(2, 'active');
+    show('act2-run1');
+    return post('/demo/run', { act: 'run', text: INPUT_TEXT, identity: IDENTITY_A });
+  }).then(function(r1) {
+    var o = r1.output || {};
+    document.getElementById('r1-text').textContent = o.refined_text || '';
+    document.getElementById('r1-eval').textContent = o.self_evaluation || '';
+    document.getElementById('r1-next').textContent = o.what_id_do_differently_next_time || '';
+    document.getElementById('r1-meta').textContent = r1.success ? r1.duration_ms + 'ms' : 'failed';
+    setStep(2, 'done');
+    setStep(3, 'active');
+    var r2col = document.getElementById('r2-col');
+    if (r2col) r2col.style.opacity = '0.5';
+    return post('/demo/run', { act: 'run', text: INPUT_TEXT, identity: IDENTITY_A });
+  }).then(function(r2) {
+    var r2col = document.getElementById('r2-col');
+    if (r2col) r2col.style.display = 'none';
+    show('act2-run2');
+    var o = r2.output || {};
+    document.getElementById('r2-prior').textContent = o.prior_run_improvements || 'No prior found';
+    document.getElementById('r2-text').textContent = o.refined_text || '';
+    document.getElementById('r2-eval').textContent = o.self_evaluation || '';
+    var sim = r2.similarity ? ' | similarity: ' + r2.similarity.toFixed(2) : '';
+    document.getElementById('r2-meta').textContent = (r2.success ? r2.duration_ms + 'ms' : 'failed') + sim;
+    setStep(3, 'done');
+    setStep(4, 'active');
+    return post('/demo/run', { act: 'setup', identity: IDENTITY_B });
+  }).then(function() {
+    setStep(4, 'done');
+    setStep(5, 'active');
+    document.getElementById('id-b').textContent = IDENTITY_B;
+    return post('/demo/run', { act: 'run', text: INPUT_TEXT, identity: IDENTITY_B });
+  }).then(function(r3) {
+    var o = r3.output || {};
+    document.getElementById('r3-text').textContent = o.refined_text || '';
+    document.getElementById('r3-meta').textContent = r3.success ? r3.duration_ms + 'ms' : 'failed';
+    show('act3');
+    setStep(5, 'done');
+
+    var proto = {
+      protocol_key: 'content_refine',
+      steps: [
+        { step: 1, primitive: 'util.time', purpose: 'Timestamp the run' },
+        { step: 2, primitive: 'memory.search', purpose: 'Find any prior refinements of this text' },
+        { step: 3, primitive: 'llm.generate', purpose: 'Refine the text using identity + prior self-critique' },
+        { step: 4, primitive: 'validate.schema', purpose: 'Verify output has all required fields' },
+        { step: 5, primitive: 'memory.log', purpose: 'Save output + self-evaluation for next run' }
+      ]
+    };
+    document.getElementById('proto-json').textContent = JSON.stringify(proto, null, 2);
+    btn.disabled = false;
+    btn.textContent = 'Run Again';
+  }).catch(function(e) {
+    btn.disabled = false;
+    btn.textContent = 'Run Again';
+    alert('Error: ' + e.message);
+  });
+}
+
+// Waitlist form
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('waitlist-form');
+  if (!form) return;
+  var btnText = form.querySelector('.btn-text');
+  var btnLoading = form.querySelector('.btn-loading');
+  var submitBtn = form.querySelector('button');
+  var formSuccess = document.getElementById('form-success');
+  var formError = document.getElementById('form-error');
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var email = form.querySelector('input[name="email"]').value;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    submitBtn.disabled = true;
+    formError.style.display = 'none';
+
+    fetch('https://donna-waitlist.jake-c-devine.workers.dev/submit', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email: email })
+    }).then(function(r) {
+      if (r.ok) {
+        form.querySelector('.form-note').style.display = 'none';
+        formSuccess.style.display = 'block';
+        form.querySelector('input[name="email"]').value = '';
+        submitBtn.style.display = 'none';
+        // Also save to demo leads
+        post('/demo/subscribe', { email: email }).catch(function() {});
+      } else { throw new Error('fail'); }
+    }).catch(function() {
+      formError.style.display = 'block';
+    });
+    btnText.style.display = 'inline';
+    btnLoading.style.display = 'none';
+    submitBtn.disabled = false;
+  });
+
+  // Scroll animations for always-visible sections
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+  var animEls = document.querySelectorAll('.compare-item, .insight-green, .diagram-model, .arch-point, .model-section, .setup-offer');
+  for (var i = 0; i < animEls.length; i++) {
+    animEls[i].style.opacity = '0';
+    animEls[i].style.transform = 'translateY(20px)';
+    animEls[i].style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(animEls[i]);
+  }
+
+  // Matrix rain
+  var canvas = document.getElementById('matrix-rain');
+  var ctx = canvas.getContext('2d');
+  function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  var chars = '01{}[]()<>=;:./\\\\|&%$#@!?+-*^~abcdefghijklmnopqrstuvwxyz';
+  var fontSize = 16;
+  var tailLength = 20;
+  var animationId = null;
+  var dropY = 0;
+  var dropX = 0;
+  var trail = [];
+  var frameDelay = 0;
+
+  function startDrop() {
+    if (animationId) return;
+    var margin = 40;
+    dropX = Math.random() > 0.5 ? margin + Math.random() * 30 : canvas.width - margin - Math.random() * 30;
+    dropY = -tailLength * fontSize;
+    trail = [];
+    frameDelay = 0;
+    canvas.classList.add('active');
+    drawDrop();
+  }
+
+  function drawDrop() {
+    frameDelay++;
+    if (frameDelay < 3) { animationId = requestAnimationFrame(drawDrop); return; }
+    frameDelay = 0;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    trail.push({ char: chars[Math.floor(Math.random() * chars.length)], y: dropY });
+    if (trail.length > tailLength) trail.shift();
+    ctx.font = 'bold ' + fontSize + 'px monospace';
+    for (var i = 0; i < trail.length; i++) {
+      if (i === trail.length - 1) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#00e87b';
+        ctx.shadowBlur = 18;
+        ctx.fillText(trail[i].char, dropX, trail[i].y);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(0, 232, 123, 0.9)';
+        ctx.fillText(trail[i].char, dropX, trail[i].y);
+      } else if (i === trail.length - 2) {
+        ctx.fillStyle = 'rgba(0, 232, 123, 0.85)';
+        ctx.shadowColor = '#00e87b';
+        ctx.shadowBlur = 10;
+        ctx.fillText(trail[i].char, dropX, trail[i].y);
+        ctx.shadowBlur = 0;
+      } else {
+        var alpha = 0.15 + (i / trail.length) * 0.5;
+        ctx.fillStyle = 'rgba(0, 232, 123, ' + alpha + ')';
+        ctx.fillText(trail[i].char, dropX, trail[i].y);
+      }
+    }
+    for (var j = 0; j < trail.length - 2; j++) {
+      if (Math.random() > 0.7) trail[j].char = chars[Math.floor(Math.random() * chars.length)];
+    }
+    dropY += fontSize;
+    if (dropY < canvas.height + tailLength * fontSize) {
+      animationId = requestAnimationFrame(drawDrop);
+    } else {
+      canvas.classList.remove('active');
+      setTimeout(function() { ctx.clearRect(0, 0, canvas.width, canvas.height); animationId = null; }, 1500);
+    }
+  }
+
+  setTimeout(startDrop, 2000);
+  setInterval(startDrop, 5000);
+});
+</script>
+</body>
+</html>
+`;
+
+
 // ===== MAIN WORKER =====
 
 export default {
@@ -1714,6 +2504,85 @@ export default {
     // GET /authoring-context
     if (url.pathname === '/authoring-context') {
       return json(buildAuthoringContext());
+    }
+
+    // GET /demo — Interactive demo page
+    if (url.pathname === '/demo' && request.method === 'GET') {
+      return new Response(DEMO_HTML, { headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
+    // POST /demo/run — Execute demo acts (no auth, rate-limited)
+    if (url.pathname === '/demo/run' && request.method === 'POST') {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const act = body.act || 'run';
+
+        // Rate limit LLM calls (not reset/setup which are cheap)
+        if (act === 'run') {
+          const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+          const rlKey = `ratelimit:demo:${ip}`;
+          const count = parseInt(await env.REGISTRY_KV.get(rlKey) || '0');
+          if (count >= 15) {
+            return json({ error: 'You have reached the demo limit. Sign up below to get notified when the full version launches.' }, 429);
+          }
+          await env.REGISTRY_KV.put(rlKey, String(count + 1), { expirationTtl: 3600 });
+        }
+
+        if (act === 'reset') {
+          if (env.DB) await env.DB.prepare('DELETE FROM memories').run();
+          return json({ ok: true, message: 'Memories cleared' });
+        }
+
+        if (act === 'setup') {
+          const { identity } = body;
+          if (!identity) return json({ error: 'identity required' }, 400);
+          await env.REGISTRY_KV.put('config:identity', identity);
+          return json({ ok: true, identity });
+        }
+
+        if (act === 'run') {
+          const { text, identity } = body;
+          if (!text) return json({ error: 'text required' }, 400);
+          const protoRaw = await env.REGISTRY_KV.get('protocol:content_refine');
+          if (!protoRaw) return json({ error: 'Demo protocol not found. Save content-refine.json first.' }, 404);
+          const protocol = JSON.parse(protoRaw);
+          const runId = 'demo-' + Date.now();
+          const context = { text, protocol_key: 'content_refine' };
+          if (identity) context.identity = identity;
+          const result = await executeBatch(env, runId, protocol.steps, context);
+          const llmOut = result.execution_results?.[2]?.result?.data;
+          let parsed = llmOut;
+          if (typeof llmOut === 'string') { try { parsed = JSON.parse(llmOut); } catch { parsed = llmOut; } }
+          const memStep = result.execution_results?.[1]?.result?.data;
+          const similarity = memStep?.[0]?.similarity || null;
+          return json({ success: result.success, duration_ms: result.duration_ms, output: parsed, similarity });
+        }
+
+        return json({ error: 'Unknown act: ' + act + '. Use reset, setup, or run.' }, 400);
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
+    }
+
+    // POST /demo/subscribe — Email opt-in (no auth)
+    if (url.pathname === '/demo/subscribe' && request.method === 'POST') {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const email = (body.email || '').toLowerCase().trim();
+        if (!email || !email.includes('@') || !email.includes('.')) {
+          return json({ error: 'Valid email required' }, 400);
+        }
+        if (env.DB) {
+          const id = 'lead-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+          const ip = request.headers.get('CF-Connecting-IP') || null;
+          await env.DB.prepare(
+            'INSERT OR IGNORE INTO leads (id, email, source, ip, created_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(id, email, 'demo', ip, new Date().toISOString()).run();
+        }
+        return json({ ok: true });
+      } catch (error) {
+        return json({ error: error.message }, 500);
+      }
     }
 
     // ===== AUTHENTICATED ENDPOINTS =====
