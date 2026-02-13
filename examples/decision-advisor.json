@@ -1,0 +1,62 @@
+{
+  "protocol_key": "decision_advisor",
+  "name": "Decision Advisor",
+  "description": "Provides personalized life/career advice shaped by identity context and prior memory. Run twice to see compounding — run 2 references run 1's blind spots to give deeper, more nuanced advice.",
+  "steps": [
+    {
+      "step": 1,
+      "name": "Get timestamp",
+      "primitive": "util.time",
+      "args": { "operation": "now" }
+    },
+    {
+      "step": 2,
+      "name": "Search for prior advice on similar decisions",
+      "primitive": "memory.search",
+      "args": {
+        "query": "decision advice: {{context.text}}",
+        "top_k": 1,
+        "event_filter": "decision_advice"
+      }
+    },
+    {
+      "step": 3,
+      "name": "Generate advice using identity + prior memory",
+      "primitive": "llm.generate",
+      "args": {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 3000,
+        "prompt": "You are a decision advisor. You give deeply personalized advice based on who someone is - their life situation, constraints, values, and what they have to lose or gain.\n\nWHO IS ASKING:\n{{context.identity}}\n\nTHEIR SITUATION:\n{{context.text}}\n\nPRIOR ADVICE MEMORY:\n{{step_2}}\n\n== RULES ==\n\n1. Keep advice CONCISE - max 120 words plain text. NO markdown, NO code blocks, NO curly braces in the text. Use dashes for lists if needed.\n2. The advice MUST be deeply specific to this person. A 28-year-old with savings and no ties should get fundamentally different advice than a 42-year-old parent with a mortgage. Do not hedge - take a clear position.\n3. If prior memories exist (non-empty array above): read the self_evaluation and what_id_reconsider from the prior run. EXPLICITLY address what was missed. Go deeper on the blind spots. Set prior_run_referenced: true.\n4. If no prior memories (empty array): first pass. Give your best advice for THIS specific person. Set prior_run_referenced: false.\n5. Be honest in self_evaluation - what angles did you miss? What assumptions are you making about this person?\n6. ESCAPE all special characters in string values. No unescaped quotes or braces.\n\nReturn ONLY valid JSON (no markdown fences, NOT an array). All 6 fields required:\n{\"advice\": \"plain text, max 120 words, take a clear position\", \"key_considerations\": [\"factor 1\", \"factor 2\", \"factor 3\"], \"self_evaluation\": \"what is still weak or missing in this advice\", \"what_id_reconsider\": \"concrete blind spots to explore next pass\", \"prior_run_referenced\": false, \"prior_run_considerations\": null}"
+      }
+    },
+    {
+      "step": 4,
+      "name": "Validate LLM output structure",
+      "primitive": "validate.schema",
+      "args": {
+        "data": "{{step_3}}",
+        "schema": {
+          "type": "object",
+          "required_fields": ["advice", "self_evaluation", "what_id_reconsider"]
+        }
+      }
+    },
+    {
+      "step": 5,
+      "name": "Log advice to memory for future runs",
+      "primitive": "memory.log",
+      "args": {
+        "event": "decision_advice",
+        "payload": {
+          "situation": "{{context.text}}",
+          "advice": "{{step_4.advice}}",
+          "key_considerations": "{{step_4.key_considerations}}",
+          "self_evaluation": "{{step_4.self_evaluation}}",
+          "what_id_reconsider": "{{step_4.what_id_reconsider}}",
+          "identity": "{{context.identity}}",
+          "timestamp": "{{step_1.timestamp}}"
+        }
+      }
+    }
+  ]
+}
